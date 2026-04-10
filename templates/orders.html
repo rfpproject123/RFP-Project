@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}New Order — CaféQueue{% endblock %}
+{% block page_title %}New Order{% endblock %}
+{% block page_sub %}Allocate a table or join the priority queue{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+  <!-- Order form -->
+  <div style="display:flex;flex-direction:column;gap:20px">
+    <div class="card">
+      <div class="card-title">Customer Details</div>
+      <div class="form-group">
+        <label class="form-label">Customer Name</label>
+        <input class="form-input" id="o-name" placeholder="e.g. Meera Patel" autocomplete="off"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Number of Seats Required</label>
+        <select class="form-select" id="o-seats" onchange="onSeatsChange()">
+          <option value="2">2 seats — couple / pair</option>
+          <option value="4" selected>4 seats — small group</option>
+          <option value="6">6 seats — medium group</option>
+          <option value="8">8 seats — large group</option>
+          <option value="10">10 seats — party table</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="check-row" style="cursor:pointer">
+          <input type="checkbox" id="o-vip"/>
+          <div>
+            <div class="check-label-title">⭐ VIP Customer</div>
+            <div class="check-label-sub">Overrides all seat-size priority — served first when any table is free</div>
+          </div>
+        </label>
+      </div>
+      <button class="btn btn-primary btn-block btn-lg" onclick="placeOrder()">
+        Allocate Table →
+      </button>
+      <div id="o-result"></div>
+    </div>
+
+    <!-- Priority legend -->
+    <div class="card">
+      <div class="card-title">Priority System</div>
+      <div class="prio-legend">
+        <div class="prio-row"><span class="p-dot pd-0"></span><span class="badge b-p0" style="margin-right:8px">P0</span> VIP — immediate, overrides all</div>
+        <div class="prio-row"><span class="p-dot pd-1"></span><span class="badge b-p1" style="margin-right:8px">P1</span> 10-seat groups</div>
+        <div class="prio-row"><span class="p-dot pd-2"></span><span class="badge b-p2" style="margin-right:8px">P2</span> 8-seat groups</div>
+        <div class="prio-row"><span class="p-dot pd-3"></span><span class="badge b-p3" style="margin-right:8px">P3</span> 6-seat groups</div>
+        <div class="prio-row"><span class="p-dot pd-4"></span><span class="badge b-p4" style="margin-right:8px">P4</span> 4-seat groups</div>
+        <div class="prio-row"><span class="p-dot pd-5"></span><span class="badge b-p5" style="margin-right:8px">P5</span> 2-seat groups</div>
+      </div>
+      <div class="form-hint" style="margin-top:10px">
+        If no table of the requested size is available, the customer is placed in the priority queue and served automatically when a table is cleaned and ready.
+      </div>
+    </div>
+  </div>
+
+  <!-- Right column: priority queue + available tables -->
+  <div style="display:flex;flex-direction:column;gap:20px">
+    <!-- Available tables -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Available Tables</span>
+        <span id="avail-label" class="badge b-ready">—</span>
+      </div>
+      <div id="avail-tables"></div>
+    </div>
+
+    <!-- Priority queue -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Priority Queue</span>
+        <span id="pq-badge" class="badge b-waiting">0 waiting</span>
+      </div>
+      <div id="pq-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- All orders -->
+<div class="card" style="margin-top:20px">
+  <div class="card-header">
+    <span class="card-title">All Orders</span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="tabs" style="margin:0">
+        <button class="tab active" onclick="filterOrders('all',this)">All</button>
+        <button class="tab" onclick="filterOrders('active',this)">Active</button>
+        <button class="tab" onclick="filterOrders('paid',this)">Paid</button>
+      </div>
+      <button class="btn btn-sm" onclick="loadOrders()">↺</button>
+    </div>
+  </div>
+  <div id="orders-table"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allOrders=[];
+let orderFilter='all';
+
+async function loadAvail(){
+  const rq=await api('/api/ready-queue');
+  const total=Object.values(rq).flat().length;
+  document.getElementById('avail-label').textContent=`${total} ready`;
+  const el=document.getElementById('avail-tables');
+  const seats=Object.keys(rq).sort((a,b)=>a-b);
+  if(!seats.length){el.innerHTML=emptyHTML('😶','No tables available right now');return;}
+  el.innerHTML=seats.map(s=>{
+    const items=rq[s];
+    return`<div class="seat-section">
+      <div class="seat-section-title">${s}-seat tables <span class="seat-count-badge">${items.length}</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${items.map(it=>`
+          <div style="padding:6px 12px;background:var(--bg3);border:1px solid rgba(61,214,140,.2);
+            border-radius:var(--r);font-size:12.5px;color:var(--green)">
+            T${it.table_number}
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadPQ(){
+  const pq=await api('/api/priority-queue');
+  document.getElementById('pq-badge').textContent=`${pq.length} waiting`;
+  const el=document.getElementById('pq-list');
+  if(!pq.length){el.innerHTML=emptyHTML('✨','Queue is empty');return;}
+  el.innerHTML=`<div class="q-list">${pq.map((it,i)=>`
+    <div class="q-item">
+      <div class="q-pos">${i+1}</div>
+      <div class="q-info">
+        <div class="q-name">${it.is_vip?'⭐ ':''}${it.name}</div>
+        <div class="q-meta">${it.seats} seats · ${timeAgo(it.enqueued)}</div>
+      </div>
+      <span class="p-dot ${pDotClass(it.priority)}" style="margin-right:4px"></span>
+      <span class="badge ${pBadgeClass(it.priority)}">${pLabel(it.priority)}</span>
+    </div>`).join('')}</div>`;
+}
+
+async function loadOrders(){
+  allOrders=await api('/api/orders');
+  renderOrders();
+}
+
+function renderOrders(){
+  const filtered=orderFilter==='all'?allOrders:allOrders.filter(o=>o.status===orderFilter);
+  const el=document.getElementById('orders-table');
+  if(!filtered.length){el.innerHTML=emptyHTML('📭','No orders');return;}
+  el.innerHTML=`
+  <table class="data-table">
+    <thead><tr>
+      <th>#</th><th>Table</th><th>Customer</th><th>Seats</th>
+      <th>Type</th><th>Status</th><th>Created</th><th>Action</th>
+    </tr></thead>
+    <tbody>${filtered.map((o,i)=>`
+      <tr>
+        <td class="mono">${filtered.length-i}</td>
+        <td class="txt-main">T${o.table_number||'?'}</td>
+        <td class="txt-main">${o.name}</td>
+        <td>${o.seats}</td>
+        <td>${o.is_vip?'<span class="badge b-vip">VIP</span>':'Regular'}</td>
+        <td><span class="badge b-${o.status}">${o.status}</span></td>
+        <td class="mono">${fmtDT(o.created)}</td>
+        <td>${o.status==='active'
+          ?`<button class="btn btn-green btn-sm" onclick="payOrder('${o._id}')">💳 Pay</button>`
+          :`<span style="font-size:11px;color:var(--txt3)">${fmtTime(o.paid_at)}</span>`}
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function filterOrders(f,btn){
+  orderFilter=f;
+  document.querySelectorAll('.tabs .tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderOrders();
+}
+
+function onSeatsChange(){loadAvail();}
+
+async function placeOrder(){
+  const name=document.getElementById('o-name').value.trim();
+  const seats=parseInt(document.getElementById('o-seats').value);
+  const is_vip=document.getElementById('o-vip').checked;
+  if(!name){toast('Enter customer name','err');return;}
+
+  const res=await api('/api/orders/new','POST',{name,seats,is_vip});
+  const r=document.getElementById('o-result');
+  if(res.allocated){
+    toast(res.msg,'ok');
+    r.innerHTML=`<div class="result-box ok">
+      <div class="result-icon">✅</div>
+      <div><div class="result-title">Table ${res.table} Allocated!</div>
+      <div class="result-sub">${res.msg}</div></div></div>`;
+  } else {
+    toast(res.msg,'info');
+    r.innerHTML=`<div class="result-box info">
+      <div class="result-icon">⏳</div>
+      <div><div class="result-title">Added to Priority Queue</div>
+      <div class="result-sub">${res.msg}</div></div></div>`;
+  }
+  document.getElementById('o-name').value='';
+  document.getElementById('o-vip').checked=false;
+  await Promise.all([loadAvail(),loadPQ(),loadOrders()]);
+}
+
+async function payOrder(oid){
+  const res=await api(`/api/orders/${oid}/pay`,'POST');
+  toast(res.msg,res.ok?'ok':'err');
+  await Promise.all([loadOrders(),loadPQ(),loadAvail()]);
+}
+
+Promise.all([loadAvail(),loadPQ(),loadOrders()]);
+setInterval(()=>Promise.all([loadAvail(),loadPQ()]),10000);
+</script>
+{% endblock %}

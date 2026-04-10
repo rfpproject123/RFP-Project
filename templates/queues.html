@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Queues — CaféQueue{% endblock %}
+{% block page_title %}Queue Inspector{% endblock %}
+{% block page_sub %}Live view of all three queue systems{% endblock %}
+
+{% block content %}
+<!-- Summary bar -->
+<div class="grid-3" style="margin-bottom:24px">
+  <div class="stat-card" style="display:flex;gap:16px;align-items:center">
+    <div>
+      <div class="stat-val" id="rq-count" style="color:var(--green)">—</div>
+      <div class="stat-label">Ready Queue</div>
+      <div class="stat-sub">FIFO · tables available</div>
+    </div>
+  </div>
+  <div class="stat-card" style="display:flex;gap:16px;align-items:center">
+    <div>
+      <div class="stat-val" id="cq-count" style="color:var(--amber)">—</div>
+      <div class="stat-label">Cleaning Queue</div>
+      <div class="stat-sub">FIFO · awaiting cleaning</div>
+    </div>
+  </div>
+  <div class="stat-card" style="display:flex;gap:16px;align-items:center">
+    <div>
+      <div class="stat-val" id="pq-count" style="color:var(--purple)">—</div>
+      <div class="stat-label">Priority Queue</div>
+      <div class="stat-sub">Max-heap · waiting customers</div>
+    </div>
+  </div>
+</div>
+
+<div class="grid-3">
+  <!-- Ready Queue -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title" style="color:var(--green)">● Ready Queue</span>
+      <button class="btn btn-sm" onclick="loadAll()">↺</button>
+    </div>
+    <div class="form-hint" style="margin-bottom:12px">
+      Separate FIFO queue per seat category. First-in, first-out allocation.
+    </div>
+    <div id="rq-body"></div>
+  </div>
+
+  <!-- Cleaning Queue -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title" style="color:var(--amber)">● Cleaning Queue</span>
+    </div>
+    <div class="form-hint" style="margin-bottom:12px">
+      Tables enter after payment. Dequeued when staff marks them cleaned.
+    </div>
+    <div id="cq-body"></div>
+  </div>
+
+  <!-- Priority Queue -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title" style="color:var(--purple)">● Priority Queue</span>
+    </div>
+    <div class="form-hint" style="margin-bottom:12px">
+      Sorted by priority key. VIP → large groups → small groups.
+    </div>
+    <div id="pq-body"></div>
+  </div>
+</div>
+
+<!-- Algorithm reference -->
+<div class="card" style="margin-top:24px">
+  <div class="card-title">Algorithm Reference</div>
+  <div class="grid-3" style="margin-top:4px">
+    <div>
+      <div style="font-size:13px;font-weight:600;color:var(--green);margin-bottom:8px">Ready Queue — FIFO</div>
+      <div style="font-size:13px;color:var(--txt2);line-height:1.7">
+        Each seat category (2, 4, 6, 8, 10) has its own FIFO queue stored in MongoDB, sorted by <code style="font-family:var(--fontMono);background:var(--bg3);padding:1px 5px;border-radius:4px;font-size:12px">enqueued</code> timestamp.
+        On customer arrival, the front of the matching queue is dequeued and the table allocated.
+        Time complexity: <strong>O(1)</strong> enqueue and dequeue.
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:600;color:var(--amber);margin-bottom:8px">Cleaning Queue — FIFO</div>
+      <div style="font-size:13px;color:var(--txt2);line-height:1.7">
+        Same structure as the ready queue — one FIFO queue per seat category.
+        Tables enter after payment. On marking cleaned, the system checks the priority queue first;
+        if a matching customer is waiting, the table is allocated directly.
+        Otherwise it re-enters the ready queue.
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:600;color:var(--purple);margin-bottom:8px">Priority Queue — Max-Heap</div>
+      <div style="font-size:13px;color:var(--txt2);line-height:1.7">
+        Customers who cannot be immediately seated enter this queue.
+        Priority key: VIP=0, 10-seat=1, 8-seat=2, 6-seat=3, 4-seat=4, 2-seat=5.
+        Ties broken by <code style="font-family:var(--fontMono);background:var(--bg3);padding:1px 5px;border-radius:4px;font-size:12px">enqueued</code> timestamp (FIFO within same priority).
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function renderQueueBySeat(data, color){
+  const keys=Object.keys(data).sort((a,b)=>a-b);
+  if(!keys.length) return emptyHTML('📭','Queue is empty');
+  return keys.map(s=>{
+    const items=data[s];
+    return`<div class="seat-section">
+      <div class="seat-section-title">${s}-seat <span class="seat-count-badge">${items.length}</span></div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        ${items.map((it,i)=>`
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;
+            background:var(--bg3);border-radius:var(--r);font-size:13px">
+            <span class="mono" style="color:var(--txt3);font-size:10px;width:20px">#${i+1}</span>
+            <span style="color:var(--txt)">Table ${it.table_number}</span>
+            <span class="mono" style="margin-left:auto;font-size:11px;color:var(--txt3)">${fmtTime(it.enqueued)}</span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadAll(){
+  const [rq,cq,pq]=await Promise.all([
+    api('/api/ready-queue'),
+    api('/api/cleaning-queue'),
+    api('/api/priority-queue')
+  ]);
+
+  const rqTotal=Object.values(rq).flat().length;
+  const cqTotal=Object.values(cq).flat().length;
+  document.getElementById('rq-count').textContent=rqTotal;
+  document.getElementById('cq-count').textContent=cqTotal;
+  document.getElementById('pq-count').textContent=pq.length;
+
+  document.getElementById('rq-body').innerHTML=renderQueueBySeat(rq,'var(--green)');
+  document.getElementById('cq-body').innerHTML=renderQueueBySeat(cq,'var(--amber)');
+
+  const pqEl=document.getElementById('pq-body');
+  if(!pq.length){pqEl.innerHTML=emptyHTML('✨','No one waiting');return;}
+  pqEl.innerHTML=`<div class="q-list">${pq.map((it,i)=>`
+    <div class="q-item">
+      <div class="q-pos">${i+1}</div>
+      <div class="q-info">
+        <div class="q-name">${it.is_vip?'⭐ ':''}${it.name}</div>
+        <div class="q-meta">${it.seats} seats · ${timeAgo(it.enqueued)}</div>
+      </div>
+      <span class="p-dot ${pDotClass(it.priority)}" style="margin-right:4px"></span>
+      <span class="badge ${pBadgeClass(it.priority)}">${pLabel(it.priority)}</span>
+    </div>`).join('')}</div>`;
+}
+
+loadAll();
+setInterval(loadAll,8000);
+</script>
+{% endblock %}

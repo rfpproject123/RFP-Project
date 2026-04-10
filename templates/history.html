@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}History — CaféQueue{% endblock %}
+{% block page_title %}Order History{% endblock %}
+{% block page_sub %}Complete record of all orders{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">All Orders</span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="tabs" style="margin:0">
+        <button class="tab active" onclick="filter('all',this)">All</button>
+        <button class="tab" onclick="filter('active',this)">Active</button>
+        <button class="tab" onclick="filter('paid',this)">Paid</button>
+        <button class="tab" onclick="filter('vip',this)">VIP</button>
+      </div>
+      <button class="btn btn-sm" onclick="load()">↺ Refresh</button>
+    </div>
+  </div>
+
+  <!-- Summary row -->
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px" id="summary-row"></div>
+
+  <div id="hist-table"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let orders=[];
+let activeFilter='all';
+
+async function load(){
+  orders=await api('/api/orders');
+  renderSummary();
+  renderTable();
+}
+
+function renderSummary(){
+  const total=orders.length;
+  const active=orders.filter(o=>o.status==='active').length;
+  const paid=orders.filter(o=>o.status==='paid').length;
+  const vip=orders.filter(o=>o.is_vip).length;
+  document.getElementById('summary-row').innerHTML=`
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <span style="font-size:13px;color:var(--txt2)">Total: <strong style="color:var(--txt)">${total}</strong></span>
+      <span style="color:var(--border)">|</span>
+      <span style="font-size:13px;color:var(--txt2)">Active: <strong style="color:var(--red)">${active}</strong></span>
+      <span style="color:var(--border)">|</span>
+      <span style="font-size:13px;color:var(--txt2)">Paid: <strong style="color:var(--green)">${paid}</strong></span>
+      <span style="color:var(--border)">|</span>
+      <span style="font-size:13px;color:var(--txt2)">VIP: <strong style="color:var(--purple)">${vip}</strong></span>
+    </div>`;
+}
+
+function filter(f,btn){
+  activeFilter=f;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+function renderTable(){
+  let filtered=orders;
+  if(activeFilter==='active') filtered=orders.filter(o=>o.status==='active');
+  else if(activeFilter==='paid') filtered=orders.filter(o=>o.status==='paid');
+  else if(activeFilter==='vip') filtered=orders.filter(o=>o.is_vip);
+
+  const el=document.getElementById('hist-table');
+  if(!filtered.length){el.innerHTML=emptyHTML('📭','No orders match this filter');return;}
+  el.innerHTML=`
+  <table class="data-table">
+    <thead><tr>
+      <th>№</th><th>Table</th><th>Customer</th><th>Seats</th>
+      <th>Type</th><th>Status</th><th>Priority</th>
+      <th>Created</th><th>Paid At</th><th>Duration</th>
+    </tr></thead>
+    <tbody>${filtered.map((o,i)=>{
+      let dur='—';
+      if(o.status==='paid'&&o.paid_at){
+        const ms=new Date(o.paid_at)-new Date(o.created);
+        const mins=Math.floor(ms/60000);
+        const secs=Math.floor((ms%60000)/1000);
+        dur=`${mins}m ${secs}s`;
+      } else if(o.status==='active'){
+        dur=timeAgo(o.created);
+      }
+      return`<tr>
+        <td class="mono">${filtered.length-i}</td>
+        <td class="txt-main">T${o.table_number||'?'}</td>
+        <td class="txt-main">${o.name}</td>
+        <td>${o.seats}</td>
+        <td>${o.is_vip?'<span class="badge b-vip">VIP</span>':'Regular'}</td>
+        <td><span class="badge b-${o.status}">${o.status}</span></td>
+        <td><span class="badge ${pBadgeClass(o.priority)}">${pLabel(o.priority)}</span></td>
+        <td class="mono">${fmtDT(o.created)}</td>
+        <td class="mono">${o.paid_at?fmtTime(o.paid_at):'—'}</td>
+        <td class="mono" style="color:var(--txt3)">${dur}</td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table>`;
+}
+
+load();
+setInterval(load,15000);
+</script>
+{% endblock %}

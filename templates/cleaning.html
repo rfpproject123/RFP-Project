@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Cleaning — CaféQueue{% endblock %}
+{% block page_title %}Cleaning Station{% endblock %}
+{% block page_sub %}Mark tables as cleaned to return them to service{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+  <!-- Cleaning queue -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Cleaning Queue</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="badge b-cleaning" id="cq-badge">0 tables</span>
+        <button class="btn btn-sm" onclick="loadAll()">↺</button>
+      </div>
+    </div>
+    <div class="form-hint" style="margin-bottom:14px">
+      Tables appear here after payment is processed. Click <strong style="color:var(--txt)">"Mark Cleaned"</strong> once the table is physically cleaned. The system will automatically allocate it to the next waiting customer or return it to the ready queue.
+    </div>
+    <div id="cq-list"></div>
+  </div>
+
+  <!-- Right -->
+  <div style="display:flex;flex-direction:column;gap:20px">
+    <!-- Cleaning workflow -->
+    <div class="card">
+      <div class="card-title">Cleaning Workflow</div>
+      <div class="flow-steps">
+        <div class="flow-step">
+          <div class="flow-step-num fsn-orange">1</div>
+          <div>
+            <div class="flow-step-title">Payment received</div>
+            <div class="flow-step-desc">Paying an order sends the table to this cleaning queue automatically</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num fsn-orange">2</div>
+          <div>
+            <div class="flow-step-title">Table status → Cleaning</div>
+            <div class="flow-step-desc">Table is marked "cleaning" — not shown as available to new customers</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num fsn-orange">3</div>
+          <div>
+            <div class="flow-step-title">Staff cleans the table</div>
+            <div class="flow-step-desc">Physical cleaning happens in the restaurant</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num fsn-green">4</div>
+          <div>
+            <div class="flow-step-title">Click "Mark Cleaned"</div>
+            <div class="flow-step-desc">System checks priority queue → allocates or returns to ready queue</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ready queue snapshot -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Ready Queue</span>
+        <span class="badge b-ready" id="rq-badge">—</span>
+      </div>
+      <div id="rq-snap"></div>
+    </div>
+
+    <!-- Waiting customers -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Waiting Customers</span>
+        <span class="badge b-waiting" id="pq-badge">—</span>
+      </div>
+      <div id="pq-snap"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadCQ(){
+  const cq=await api('/api/cleaning-queue');
+  const all=Object.values(cq).flat().sort((a,b)=>a.enqueued.localeCompare(b.enqueued));
+  document.getElementById('cq-badge').textContent=`${all.length} tables`;
+  const el=document.getElementById('cq-list');
+  if(!all.length){
+    el.innerHTML=emptyHTML('✨','No tables in cleaning queue — all clean!');
+    return;
+  }
+  el.innerHTML=`<div class="q-list">${all.map((it,i)=>`
+    <div class="q-item">
+      <div class="q-pos">${i+1}</div>
+      <div style="font-size:1.4rem">🪑</div>
+      <div class="q-info">
+        <div class="q-name">Table ${it.table_number}</div>
+        <div class="q-meta">${it.seats} seats · In cleaning ${timeAgo(it.enqueued)}</div>
+      </div>
+      <div class="q-action">
+        <button class="btn btn-green btn-sm" onclick="markCleaned('${it.qid}')">✓ Mark Cleaned</button>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+async function loadRQ(){
+  const rq=await api('/api/ready-queue');
+  const total=Object.values(rq).flat().length;
+  document.getElementById('rq-badge').textContent=`${total} tables`;
+  const el=document.getElementById('rq-snap');
+  const keys=Object.keys(rq).sort((a,b)=>a-b);
+  if(!keys.length){el.innerHTML=emptyHTML('😶','No tables ready');return;}
+  el.innerHTML=keys.map(s=>`
+    <div class="seat-section">
+      <div class="seat-section-title">${s}-seat <span class="seat-count-badge">${rq[s].length}</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${rq[s].map(it=>`
+          <div style="padding:5px 10px;background:var(--bg3);border:1px solid rgba(61,214,140,.2);
+            border-radius:6px;font-size:12px;color:var(--green)">T${it.table_number}</div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+async function loadPQ(){
+  const pq=await api('/api/priority-queue');
+  document.getElementById('pq-badge').textContent=`${pq.length} waiting`;
+  const el=document.getElementById('pq-snap');
+  if(!pq.length){el.innerHTML=emptyHTML('✨','No one waiting');return;}
+  el.innerHTML=`<div class="q-list">${pq.slice(0,5).map((it,i)=>`
+    <div class="q-item">
+      <div class="q-pos">${i+1}</div>
+      <div class="q-info">
+        <div class="q-name">${it.is_vip?'⭐ ':''}${it.name}</div>
+        <div class="q-meta">${it.seats} seats · ${timeAgo(it.enqueued)}</div>
+      </div>
+      <span class="badge ${pBadgeClass(it.priority)}">${pLabel(it.priority)}</span>
+    </div>`).join('')}
+  </div>${pq.length>5?`<div class="form-hint" style="margin-top:8px;text-align:center">+${pq.length-5} more customers waiting</div>`:''}`;
+}
+
+async function markCleaned(qid){
+  const res=await api(`/api/cleaning/${qid}/cleaned`,'POST');
+  toast(res.msg,res.ok?'ok':'err');
+  await loadAll();
+}
+
+async function loadAll(){
+  await Promise.all([loadCQ(),loadRQ(),loadPQ()]);
+}
+
+loadAll();
+setInterval(loadAll,10000);
+</script>
+{% endblock %}

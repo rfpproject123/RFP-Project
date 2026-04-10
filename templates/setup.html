@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}Setup — CaféQueue{% endblock %}
+{% block page_title %}Restaurant Setup{% endblock %}
+{% block page_sub %}Configure tables — this resets all queues and orders{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+  <!-- Builder -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Define Tables</span>
+      <button class="btn btn-sm" onclick="addRow()">+ Add Table</button>
+    </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      <button class="btn btn-sm" onclick="preset('small')">☕ Small Café</button>
+      <button class="btn btn-sm" onclick="preset('medium')">🍴 Medium Restaurant</button>
+      <button class="btn btn-sm" onclick="preset('large')">🏨 Large Venue</button>
+    </div>
+
+    <div id="rows-wrap"></div>
+
+    <hr class="div"/>
+    <button class="btn btn-primary btn-block btn-lg" onclick="doSetup()">
+      🚀 Initialize Restaurant
+    </button>
+    <p class="form-hint" style="text-align:center;margin-top:8px">
+      ⚠ Resets all existing data — orders, queues, and table states
+    </p>
+  </div>
+
+  <!-- Preview -->
+  <div style="display:flex;flex-direction:column;gap:20px">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Table Preview</span>
+        <span id="prev-count" class="mono" style="font-size:12px;color:var(--txt3)">0 tables</span>
+      </div>
+      <div class="grid-auto" id="prev-grid">
+        <div class="empty"><div class="empty-text">Add tables to preview</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Seat Category Breakdown</div>
+      <div id="cat-breakdown">
+        <div class="empty"><div class="empty-text">—</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">How Setup Works</div>
+      <div class="flow-steps">
+        <div class="flow-step">
+          <div class="flow-step-num fsn-orange">1</div>
+          <div>
+            <div class="flow-step-title">Define table configuration</div>
+            <div class="flow-step-desc">Assign table numbers and seat counts for each table</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num fsn-orange">2</div>
+          <div>
+            <div class="flow-step-title">All tables enter the Ready Queue</div>
+            <div class="flow-step-desc">Each seat category gets its own FIFO ready queue</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num fsn-green">3</div>
+          <div>
+            <div class="flow-step-title">Restaurant is live</div>
+            <div class="flow-step-desc">Customers can now be allocated tables from the queue</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let rows=[];let rid=0;
+
+function addRow(num='',seats=4){
+  rid++;
+  rows.push({id:rid,num:num||`T${rid}`,seats});
+  render();
+}
+
+function removeRow(id){
+  rows=rows.filter(r=>r.id!==id);
+  render();
+}
+
+function updateRow(id,field,val){
+  const r=rows.find(r=>r.id===id);
+  if(r){r[field]=field==='seats'?parseInt(val):val;updatePreview();}
+}
+
+function render(){
+  const el=document.getElementById('rows-wrap');
+  if(!rows.length){
+    el.innerHTML='<div class="empty" style="padding:24px"><div class="empty-text">Click "+ Add Table" or choose a preset</div></div>';
+    updatePreview();return;
+  }
+  el.innerHTML=rows.map(r=>`
+    <div class="tbl-row">
+      <div class="form-group" style="margin:0">
+        <label class="form-label">Table #</label>
+        <input class="form-input" value="${r.num}" placeholder="T1"
+          onchange="updateRow(${r.id},'num',this.value)"/>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label class="form-label">Seats</label>
+        <select class="form-select" onchange="updateRow(${r.id},'seats',this.value)">
+          ${[2,4,6,8,10].map(s=>`<option value="${s}"${s===r.seats?' selected':''}>${s} seats</option>`).join('')}
+        </select>
+      </div>
+      <button class="btn btn-red btn-sm" style="margin-top:24px" onclick="removeRow(${r.id})">✕</button>
+    </div>`).join('');
+  updatePreview();
+}
+
+function updatePreview(){
+  const grid=document.getElementById('prev-grid');
+  const count=document.getElementById('prev-count');
+  const cat=document.getElementById('cat-breakdown');
+  count.textContent=`${rows.length} tables`;
+  if(!rows.length){
+    grid.innerHTML='<div class="empty"><div class="empty-text">No tables yet</div></div>';
+    cat.innerHTML='<div class="empty"><div class="empty-text">—</div></div>';
+    return;
+  }
+  grid.innerHTML=rows.map(r=>`
+    <div class="table-tile ready">
+      <div class="tile-num">${r.num||'?'}</div>
+      <div class="tile-seats">${r.seats} seats</div>
+      <span class="badge b-ready">ready</span>
+    </div>`).join('');
+
+  const counts={};
+  rows.forEach(r=>{counts[r.seats]=(counts[r.seats]||0)+1});
+  const total=rows.reduce((s,r)=>s+r.seats,0);
+  cat.innerHTML=Object.entries(counts).sort((a,b)=>a[0]-b[0]).map(([s,c])=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;
+      padding:9px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:13.5px">${s}-seat tables</span>
+      <span style="font-family:var(--fontMono);font-size:13px;color:var(--orange)">${c} table${c>1?'s':''}</span>
+    </div>`).join('')+`
+    <div style="display:flex;justify-content:space-between;padding:10px 0">
+      <span style="font-weight:500">Total capacity</span>
+      <span style="font-family:var(--fontMono);color:var(--teal)">${total} seats across ${rows.length} tables</span>
+    </div>`;
+}
+
+function preset(type){
+  rows=[];rid=0;
+  const P={
+    small:[
+      {n:'T1',s:2},{n:'T2',s:2},{n:'T3',s:4},{n:'T4',s:4},
+      {n:'T5',s:4},{n:'T6',s:6},{n:'T7',s:6},{n:'T8',s:8}
+    ],
+    medium:[
+      {n:'T1',s:2},{n:'T2',s:2},{n:'T3',s:2},{n:'T4',s:4},
+      {n:'T5',s:4},{n:'T6',s:4},{n:'T7',s:4},{n:'T8',s:6},
+      {n:'T9',s:6},{n:'T10',s:6},{n:'T11',s:8},{n:'T12',s:8},
+      {n:'T13',s:10},{n:'T14',s:10},{n:'T15',s:4},{n:'T16',s:2}
+    ],
+    large:[
+      {n:'A1',s:2},{n:'A2',s:2},{n:'A3',s:2},{n:'A4',s:2},
+      {n:'B1',s:4},{n:'B2',s:4},{n:'B3',s:4},{n:'B4',s:4},
+      {n:'B5',s:4},{n:'B6',s:4},{n:'C1',s:6},{n:'C2',s:6},
+      {n:'C3',s:6},{n:'D1',s:8},{n:'D2',s:8},{n:'D3',s:8},
+      {n:'E1',s:10},{n:'E2',s:10},{n:'E3',s:10},{n:'E4',s:10}
+    ]
+  };
+  P[type].forEach(p=>{rid++;rows.push({id:rid,num:p.n,seats:p.s})});
+  render();
+  toast(`Loaded ${type} preset (${rows.length} tables)`,'info');
+}
+
+async function doSetup(){
+  if(!rows.length){toast('Add at least one table','err');return;}
+  const tables=rows.map(r=>({number:r.num,seats:r.seats}));
+  const res=await api('/api/setup','POST',{tables});
+  if(res.ok){
+    toast(res.msg,'ok');
+    setTimeout(()=>window.location.href='/',1500);
+  } else {
+    toast(res.msg||'Setup failed','err');
+  }
+}
+
+preset('small');
+</script>
+{% endblock %}

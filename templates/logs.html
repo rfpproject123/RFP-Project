@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Logs — CaféQueue{% endblock %}
+{% block page_title %}Activity Logs{% endblock %}
+{% block page_sub %}Audit trail of all queue operations{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">System Logs</span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="tabs" style="margin:0">
+        <button class="tab active" onclick="filter('ALL',this)">All</button>
+        <button class="tab" onclick="filter('SETUP',this)">Setup</button>
+        <button class="tab" onclick="filter('ALLOCATED',this)">Allocated</button>
+        <button class="tab" onclick="filter('PAYMENT',this)">Payment</button>
+        <button class="tab" onclick="filter('QUEUED',this)">Queued</button>
+        <button class="tab" onclick="filter('CLEANED',this)">Cleaned</button>
+      </div>
+      <button class="btn btn-sm" onclick="load()">↺</button>
+    </div>
+  </div>
+  <div id="log-list"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allLogs=[];
+let activeFilter='ALL';
+
+const ICONS={
+  SETUP:'⚙️', ALLOCATED:'✅', PAYMENT:'💳',
+  QUEUED:'⏳', 'CLEANED→READY':'🧹', 'CLEANED→ALLOCATED':'🎯'
+};
+const COLORS={
+  SETUP:'var(--teal)', ALLOCATED:'var(--green)', PAYMENT:'var(--amber)',
+  QUEUED:'var(--red)', 'CLEANED→READY':'var(--teal)', 'CLEANED→ALLOCATED':'var(--purple)'
+};
+
+async function load(){
+  allLogs=await api('/api/logs');
+  render();
+}
+
+function filter(f,btn){
+  activeFilter=f;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function render(){
+  const filtered=activeFilter==='ALL'
+    ? allLogs
+    : allLogs.filter(l=>l.action.includes(activeFilter));
+
+  const el=document.getElementById('log-list');
+  if(!filtered.length){el.innerHTML=emptyHTML('📭','No log entries');return;}
+  el.innerHTML=`<div class="log-list">${filtered.map(l=>`
+    <div class="log-entry" data-action="${l.action}">
+      <div class="log-time">${fmtTime(l.ts)}</div>
+      <div style="font-size:1.1rem;flex-shrink:0">${ICONS[l.action]||'📌'}</div>
+      <div style="flex:1">
+        <div class="log-badge" style="color:${COLORS[l.action]||'var(--txt2)'}">
+          ${l.action.replace(/→/,' → ')}
+        </div>
+        <div class="log-detail">${l.detail}</div>
+      </div>
+      <div class="mono" style="font-size:11px;color:var(--txt3);white-space:nowrap">
+        ${new Date(l.ts).toLocaleDateString([],{month:'short',day:'numeric'})}
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
+load();
+setInterval(load,8000);
+</script>
+{% endblock %}

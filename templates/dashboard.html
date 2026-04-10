@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — CaféQueue{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_sub %}Live overview of tables, queues and orders{% endblock %}
+
+{% block content %}
+<!-- Stats row -->
+<div class="grid-4" style="margin-bottom:24px" id="stats-row">
+  <div class="stat-card">
+    <div class="stat-icon">🪑</div>
+    <div class="stat-val" id="st-total">—</div>
+    <div class="stat-label">Total Tables</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">✅</div>
+    <div class="stat-val" id="st-ready" style="color:var(--green)">—</div>
+    <div class="stat-label">Ready</div>
+    <div class="stat-sub">available now</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">🍽️</div>
+    <div class="stat-val" id="st-occ" style="color:var(--red)">—</div>
+    <div class="stat-label">Occupied</div>
+    <div class="stat-sub">currently dining</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">🧹</div>
+    <div class="stat-val" id="st-clean" style="color:var(--amber)">—</div>
+    <div class="stat-label">Cleaning</div>
+    <div class="stat-sub">being cleaned</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">⏳</div>
+    <div class="stat-val" id="st-wait" style="color:var(--purple)">—</div>
+    <div class="stat-label">Waiting</div>
+    <div class="stat-sub">in priority queue</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">📋</div>
+    <div class="stat-val" id="st-aord" style="color:var(--teal)">—</div>
+    <div class="stat-label">Active Orders</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">📦</div>
+    <div class="stat-val" id="st-tord" style="color:var(--orange)">—</div>
+    <div class="stat-label">Total Orders</div>
+    <div class="stat-sub">all time</div>
+  </div>
+</div>
+
+<div class="grid-2" style="margin-bottom:24px">
+  <!-- Table Map -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Table Map</span>
+      <button class="btn btn-sm" onclick="loadAll()">↺ Refresh</button>
+    </div>
+    <div class="grid-auto" id="table-map">
+      <div class="empty"><div class="spin"></div></div>
+    </div>
+    <div style="display:flex;gap:16px;margin-top:14px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--green)">● Ready</span>
+      <span style="font-size:12px;color:var(--red)">● Occupied</span>
+      <span style="font-size:12px;color:var(--amber)">● Cleaning</span>
+    </div>
+  </div>
+
+  <!-- Quick order -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Quick Order</span>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Customer Name</label>
+      <input class="form-input" id="q-name" placeholder="e.g. Arjun Sharma" autocomplete="off"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Party Size (Seats)</label>
+        <select class="form-select" id="q-seats">
+          <option value="2">2 seats</option>
+          <option value="4" selected>4 seats</option>
+          <option value="6">6 seats</option>
+          <option value="8">8 seats</option>
+          <option value="10">10 seats</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="check-row">
+        <input type="checkbox" id="q-vip"/>
+        <div>
+          <div class="check-label-title">⭐ VIP Customer</div>
+          <div class="check-label-sub">Highest priority — immediate allocation if table available</div>
+        </div>
+      </label>
+    </div>
+    <button class="btn btn-primary btn-block btn-lg" onclick="quickOrder()">Allocate Table →</button>
+    <div id="q-result"></div>
+  </div>
+</div>
+
+<!-- Active orders -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Active Orders</span>
+    <button class="btn btn-sm" onclick="loadActiveOrders()">↺ Refresh</button>
+  </div>
+  <div id="active-orders"></div>
+</div>
+
+<!-- Priority queue -->
+<div class="card" style="margin-top:20px">
+  <div class="card-header">
+    <span class="card-title">Priority Queue — Waiting Customers</span>
+    <span class="badge b-waiting" id="pq-badge">0 waiting</span>
+  </div>
+  <div id="pq-dash"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadStats(){
+  const st=await api('/api/stats');
+  document.getElementById('st-total').textContent=st.total;
+  document.getElementById('st-ready').textContent=st.ready;
+  document.getElementById('st-occ').textContent=st.occupied;
+  document.getElementById('st-clean').textContent=st.cleaning;
+  document.getElementById('st-wait').textContent=st.waiting;
+  document.getElementById('st-aord').textContent=st.active_orders;
+  document.getElementById('st-tord').textContent=st.total_orders;
+}
+
+async function loadTableMap(){
+  const tables=await api('/api/tables');
+  const el=document.getElementById('table-map');
+  if(!tables.length){
+    el.innerHTML=emptyHTML('🪑','No tables configured. <a href="/setup" style="color:var(--orange)">Go to Setup →</a>');
+    return;
+  }
+  el.innerHTML=tables.map(t=>`
+    <div class="table-tile ${t.status}">
+      <div class="tile-num">${t.number}</div>
+      <div class="tile-seats">${t.seats} seats</div>
+      <span class="badge b-${t.status}">${t.status}</span>
+    </div>
+  `).join('');
+}
+
+async function loadActiveOrders(){
+  const orders=await api('/api/orders/active');
+  const el=document.getElementById('active-orders');
+  if(!orders.length){
+    el.innerHTML=emptyHTML('📋','No active orders right now');
+    return;
+  }
+  el.innerHTML=`
+  <table class="data-table">
+    <thead><tr>
+      <th>Table</th><th>Customer</th><th>Seats</th><th>Type</th>
+      <th>Since</th><th>Duration</th><th>Action</th>
+    </tr></thead>
+    <tbody>${orders.map(o=>`
+      <tr>
+        <td><strong class="txt-main">T${o.table_number||'?'}</strong></td>
+        <td class="txt-main">${o.name}</td>
+        <td>${o.seats}</td>
+        <td>${o.is_vip?'<span class="badge b-vip">VIP</span>':'<span class="badge b-waiting">Regular</span>'}</td>
+        <td class="mono">${fmtTime(o.created)}</td>
+        <td class="mono" style="color:var(--txt3)">${timeAgo(o.created)}</td>
+        <td>
+          <button class="btn btn-green btn-sm" onclick="payOrder('${o._id}')">💳 Pay & Clear</button>
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+async function loadPQ(){
+  const pq=await api('/api/priority-queue');
+  document.getElementById('pq-badge').textContent=`${pq.length} waiting`;
+  const el=document.getElementById('pq-dash');
+  if(!pq.length){
+    el.innerHTML=emptyHTML('✨','No customers waiting in queue');
+    return;
+  }
+  el.innerHTML=`<div class="q-list">${pq.map((it,i)=>`
+    <div class="q-item">
+      <div class="q-pos">${i+1}</div>
+      <div class="q-info">
+        <div class="q-name">${it.is_vip?'⭐ ':''}${it.name}</div>
+        <div class="q-meta">${it.seats} seats · Waiting ${timeAgo(it.enqueued)}</div>
+      </div>
+      <span class="p-dot ${pDotClass(it.priority)}" style="margin-right:4px"></span>
+      <span class="badge ${pBadgeClass(it.priority)}">${pLabel(it.priority)}</span>
+    </div>`).join('')}
+  </div>`;
+}
+
+async function loadAll(){
+  await Promise.all([loadStats(),loadTableMap(),loadActiveOrders(),loadPQ()]);
+}
+
+async function quickOrder(){
+  const name=document.getElementById('q-name').value.trim();
+  const seats=parseInt(document.getElementById('q-seats').value);
+  const is_vip=document.getElementById('q-vip').checked;
+  if(!name){toast('Enter customer name','err');return;}
+
+  const res=await api('/api/orders/new','POST',{name,seats,is_vip});
+  const r=document.getElementById('q-result');
+  if(res.allocated){
+    toast(res.msg,'ok');
+    r.innerHTML=`<div class="result-box ok">
+      <div class="result-icon">🎉</div>
+      <div><div class="result-title">Table ${res.table} Allocated!</div>
+      <div class="result-sub">${res.msg}</div></div></div>`;
+  } else {
+    toast(res.msg,'info');
+    r.innerHTML=`<div class="result-box info">
+      <div class="result-icon">⏳</div>
+      <div><div class="result-title">Added to Priority Queue</div>
+      <div class="result-sub">${res.msg}</div></div></div>`;
+  }
+  document.getElementById('q-name').value='';
+  document.getElementById('q-vip').checked=false;
+  setTimeout(loadAll,400);
+}
+
+async function payOrder(oid){
+  const res=await api(`/api/orders/${oid}/pay`,'POST');
+  toast(res.msg,res.ok?'ok':'err');
+  setTimeout(loadAll,400);
+}
+
+loadAll();
+setInterval(loadAll,15000);
+</script>
+{% endblock %}
