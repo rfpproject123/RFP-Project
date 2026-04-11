@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create Account — CaféQueue</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: var(--bg);
+            padding: 24px 16px
+        }
+
+        .auth-wrap {
+            width: 100%;
+            max-width: 460px
+        }
+
+        .auth-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 32px
+        }
+
+        .auth-brand-name {
+            font-family: var(--fontHead);
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--txt)
+        }
+
+        .auth-brand-sub {
+            font-size: 12px;
+            color: var(--txt3);
+            margin-top: 1px
+        }
+
+        .auth-card {
+            background: var(--bg1);
+            border: 1px solid var(--border);
+            border-radius: var(--r3);
+            padding: 32px 28px
+        }
+
+        .auth-title {
+            font-family: var(--fontHead);
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--txt);
+            margin-bottom: 4px
+        }
+
+        .auth-sub {
+            font-size: 13px;
+            color: var(--txt3);
+            margin-bottom: 26px
+        }
+
+        .alert {
+            padding: 11px 14px;
+            border-radius: var(--r);
+            font-size: 13px;
+            margin-bottom: 16px
+        }
+
+        .alert-err {
+            background: var(--redBg);
+            border: 1px solid rgba(247, 85, 85, .2);
+            color: var(--red)
+        }
+
+        .alert-ok {
+            background: var(--greenBg);
+            border: 1px solid rgba(61, 214, 140, .2);
+            color: var(--green)
+        }
+
+        /* Role toggle */
+        .role-toggle {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            margin-top: 6px;
+            border: 1px solid var(--border);
+            border-radius: var(--r);
+            overflow: hidden
+        }
+
+        .role-opt {
+            position: relative
+        }
+
+        .role-opt input[type=radio] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0
+        }
+
+        .role-opt label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 16px 12px;
+            cursor: pointer;
+            transition: .15s ease;
+            background: var(--bg3);
+            color: var(--txt2);
+            text-align: center;
+            border-right: 1px solid var(--border);
+        }
+
+        .role-opt:last-child label {
+            border-right: none
+        }
+
+        .role-opt input:checked+label {
+            background: rgba(255, 107, 53, .08);
+            color: var(--txt);
+            border-bottom: 2px solid var(--orange);
+        }
+
+        .role-opt label:hover {
+            background: var(--bg4)
+        }
+
+        .role-icon {
+            font-size: 1.4rem;
+            display: block
+        }
+
+        .role-title {
+            font-size: 13.5px;
+            font-weight: 600
+        }
+
+        .role-desc {
+            font-size: 11px;
+            color: var(--txt3);
+            line-height: 1.4
+        }
+
+        /* Branch info box */
+        .branch-info {
+            padding: 12px 14px;
+            border-radius: var(--r);
+            font-size: 13px;
+            border: 1px solid var(--border);
+            background: var(--bg3);
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .branch-info-icon {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            margin-top: 1px
+        }
+
+        .branch-info-text {
+            color: var(--txt2);
+            line-height: 1.5
+        }
+
+        .branch-info-text strong {
+            color: var(--txt)
+        }
+
+        /* Input wrapper */
+        .input-wrap {
+            position: relative
+        }
+
+        .input-pfx {
+            position: absolute;
+            left: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--txt3);
+            font-size: 13px;
+            pointer-events: none;
+            font-family: var(--fontMono)
+        }
+
+        .input-pfx+.form-input,
+        .has-pfx {
+            padding-left: 38px
+        }
+
+        .pass-toggle {
+            position: absolute;
+            right: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--txt3);
+            cursor: pointer;
+            font-size: 11.5px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: .15s ease;
+        }
+
+        .pass-toggle:hover {
+            color: var(--txt);
+            background: var(--bg4)
+        }
+
+        .pw-bar {
+            height: 3px;
+            border-radius: 2px;
+            margin-top: 7px;
+            background: var(--bg4);
+            transition: .3s
+        }
+
+        .pw-bar.s1 {
+            background: var(--red);
+            width: 25%
+        }
+
+        .pw-bar.s2 {
+            background: var(--amber);
+            width: 50%
+        }
+
+        .pw-bar.s3 {
+            background: var(--teal);
+            width: 75%
+        }
+
+        .pw-bar.s4 {
+            background: var(--green);
+            width: 100%
+        }
+
+        .fade-section {
+            transition: opacity .2s, max-height .25s;
+            overflow: hidden
+        }
+
+        .fade-section.hidden {
+            opacity: 0;
+            max-height: 0;
+            pointer-events: none
+        }
+
+        .fade-section.visible {
+            opacity: 1;
+            max-height: 200px
+        }
+    </style>
+</head>
+
+<body>
+    <div class="auth-wrap">
+
+        <div class="auth-brand">
+            <svg width="32" height="32" viewBox="0 0 28 28" fill="none">
+                <rect width="28" height="28" rx="8" fill="#FF6B35" />
+                <path d="M8 18c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="white" stroke-width="2" stroke-linecap="round" />
+                <path d="M14 12V8M11 10l3-4 3 4" stroke="white" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                <path d="M20 18h2a1 1 0 000-2h-2" stroke="white" stroke-width="1.5" stroke-linecap="round" />
+            </svg>
+            <div>
+                <div class="auth-brand-name">CaféQueue</div>
+                <div class="auth-brand-sub">Queue Management System</div>
+            </div>
+        </div>
+
+        <div class="auth-card">
+            <div class="auth-title">Create account</div>
+            <div class="auth-sub">Set up a new CaféQueue staff account</div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'err' if category == 'error' else 'ok' }}">{{ message }}</div>
+            {% endfor %}
+            {% endwith %}
+
+            <form method="POST" action="/register" id="reg-form">
+
+                <!-- Full name -->
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input class="form-input" type="text" name="full_name" placeholder="e.g. Priya Sharma"
+                        autocomplete="name" value="{{ request.form.get('full_name', '') }}" />
+                </div>
+
+                <!-- Username -->
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <div class="input-wrap">
+                        <span class="input-pfx">@</span>
+                        <input class="form-input has-pfx" type="text" name="username" placeholder="choose a username"
+                            autocomplete="username" required pattern="[a-zA-Z0-9_]+"
+                            title="Letters, numbers, underscores only" value="{{ request.form.get('username', '') }}"
+                            oninput="checkUsername(this)" />
+                    </div>
+                    <div class="form-hint" id="uname-hint"></div>
+                </div>
+
+                <!-- Role selector -->
+                <div class="form-group">
+                    <label class="form-label">I am a</label>
+                    <div class="role-toggle">
+                        <div class="role-opt">
+                            <input type="radio" name="role" id="role-admin" value="admin" {% if
+                                request.form.get('role','admin')=='admin' %}checked{% endif %}
+                                onchange="onRoleChange('admin')" />
+                            <label for="role-admin">
+                                <span class="role-icon">🏠</span>
+                                <span class="role-title">Restaurant Owner</span>
+                                <span class="role-desc">Admin — full access, manage setup &amp; staff</span>
+                            </label>
+                        </div>
+                        <div class="role-opt">
+                            <input type="radio" name="role" id="role-staff" value="staff" {% if
+                                request.form.get('role')=='staff' %}checked{% endif %}
+                                onchange="onRoleChange('staff')" />
+                            <label for="role-staff">
+                                <span class="role-icon">👨‍🍳</span>
+                                <span class="role-title">Staff Member</span>
+                                <span class="role-desc">Manage orders &amp; cleaning queues</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin: info about branch ID they'll receive -->
+                <div class="fade-section visible form-group" id="admin-info">
+                    <div class="branch-info">
+                        <span class="branch-info-icon">🔑</span>
+                        <div class="branch-info-text">
+                            After registration, you'll receive a unique <strong>Branch ID</strong>
+                            (e.g. <span style="font-family:var(--fontMono);color:var(--orange)">CAFE-A3X9</span>).
+                            Share this with your staff so they can join your restaurant.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Staff: enter admin's branch ID -->
+                <div class="fade-section hidden form-group" id="staff-branch">
+                    <label class="form-label">Admin's Branch ID</label>
+                    <div class="input-wrap">
+                        <span class="input-pfx">#</span>
+                        <input class="form-input has-pfx" type="text" name="branch_id" id="branch-id-input"
+                            placeholder="e.g. CAFE-A3X9"
+                            style="text-transform:uppercase;font-family:var(--fontMono);letter-spacing:.05em"
+                            value="{{ request.form.get('branch_id', '') }}"
+                            oninput="this.value=this.value.toUpperCase()" />
+                    </div>
+                    <div class="form-hint">Ask your restaurant admin for this ID.</div>
+                </div>
+
+                <!-- Password -->
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <div class="input-wrap">
+                        <span class="input-pfx">🔒</span>
+                        <input class="form-input has-pfx" type="password" name="password" id="pw-field"
+                            placeholder="min. 6 characters" autocomplete="new-password" required minlength="6"
+                            oninput="checkStrength(this.value)" />
+                        <button type="button" class="pass-toggle" onclick="togglePw('pw-field',this)">Show</button>
+                    </div>
+                    <div class="pw-bar" id="pw-bar"></div>
+                    <div class="form-hint" id="pw-label" style="margin-top:4px"></div>
+                </div>
+
+                <!-- Confirm password -->
+                <div class="form-group">
+                    <label class="form-label">Confirm Password</label>
+                    <div class="input-wrap">
+                        <span class="input-pfx">🔒</span>
+                        <input class="form-input has-pfx" type="password" name="confirm_password" id="pw2-field"
+                            placeholder="re-enter password" autocomplete="new-password" required
+                            oninput="checkMatch()" />
+                        <button type="button" class="pass-toggle" onclick="togglePw('pw2-field',this)">Show</button>
+                    </div>
+                    <div class="form-hint" id="match-hint" style="margin-top:4px"></div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:4px">
+                    Create Account →
+                </button>
+            </form>
+
+            <div style="text-align:center;margin-top:18px;font-size:13px;color:var(--txt3)">
+                Already have an account?
+                <a href="/login" style="color:var(--orange);font-weight:500">Sign in</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="toasts"></div>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        function onRoleChange(role) {
+            const adminInfo = document.getElementById('admin-info');
+            const staffBranch = document.getElementById('staff-branch');
+            const branchInput = document.getElementById('branch-id-input');
+            if (role === 'admin') {
+                adminInfo.classList.replace('hidden', 'visible');
+                staffBranch.classList.replace('visible', 'hidden');
+                branchInput.removeAttribute('required');
+            } else {
+                adminInfo.classList.replace('visible', 'hidden');
+                staffBranch.classList.replace('hidden', 'visible');
+                branchInput.setAttribute('required', '');
+            }
+        }
+
+        // Init on page load (handles back-button with staff selected)
+        window.addEventListener('DOMContentLoaded', () => {
+            const checked = document.querySelector('input[name="role"]:checked');
+            if (checked) onRoleChange(checked.value);
+        });
+
+        function togglePw(id, btn) {
+            const f = document.getElementById(id);
+            f.type = f.type === 'password' ? 'text' : 'password';
+            btn.textContent = f.type === 'password' ? 'Show' : 'Hide';
+        }
+
+        function checkStrength(val) {
+            const bar = document.getElementById('pw-bar');
+            const lbl = document.getElementById('pw-label');
+            if (!val) { bar.className = 'pw-bar'; lbl.textContent = ''; return; }
+            let score = 0;
+            if (val.length >= 6) score++;
+            if (val.length >= 10) score++;
+            if (/[A-Z]/.test(val) && /[0-9]/.test(val)) score++;
+            if (/[^A-Za-z0-9]/.test(val)) score++;
+            bar.className = 'pw-bar s' + score;
+            lbl.textContent = ['', 'Weak', 'Fair', 'Good', 'Strong'][score] || '';
+            lbl.style.color = ['', 'var(--red)', 'var(--amber)', 'var(--teal)', 'var(--green)'][score] || '';
+        }
+
+        function checkMatch() {
+            const p1 = document.getElementById('pw-field').value;
+            const p2 = document.getElementById('pw2-field').value;
+            const hint = document.getElementById('match-hint');
+            if (!p2) { hint.textContent = ''; return; }
+            if (p1 === p2) {
+                hint.textContent = 'Passwords match ✓';
+                hint.style.color = 'var(--green)';
+            } else {
+                hint.textContent = 'Passwords do not match';
+                hint.style.color = 'var(--red)';
+            }
+        }
+
+        function checkUsername(input) {
+            const hint = document.getElementById('uname-hint');
+            if (!input.value) { hint.textContent = ''; return; }
+            if (!/^[a-zA-Z0-9_]+$/.test(input.value)) {
+                hint.textContent = 'Only letters, numbers, underscores allowed';
+                hint.style.color = 'var(--red)';
+            } else {
+                hint.textContent = '';
+            }
+        }
+
+        document.getElementById('reg-form').addEventListener('submit', function (e) {
+            const p1 = document.getElementById('pw-field').value;
+            const p2 = document.getElementById('pw2-field').value;
+            if (p1 !== p2) { e.preventDefault(); toast('Passwords do not match', 'err'); }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign In — CaféQueue</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: var(--bg)
+        }
+
+        .auth-wrap {
+            width: 100%;
+            max-width: 400px;
+            padding: 24px 16px
+        }
+
+        .auth-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 32px
+        }
+
+        .auth-brand-name {
+            font-family: var(--fontHead);
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--txt)
+        }
+
+        .auth-brand-sub {
+            font-size: 12px;
+            color: var(--txt3);
+            margin-top: 1px
+        }
+
+        .auth-card {
+            background: var(--bg1);
+            border: 1px solid var(--border);
+            border-radius: var(--r3);
+            padding: 32px 28px
+        }
+
+        .auth-title {
+            font-family: var(--fontHead);
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--txt);
+            margin-bottom: 4px
+        }
+
+        .auth-sub {
+            font-size: 13px;
+            color: var(--txt3);
+            margin-bottom: 26px
+        }
+
+        .alert {
+            padding: 11px 14px;
+            border-radius: var(--r);
+            font-size: 13px;
+            margin-bottom: 16px
+        }
+
+        .alert-err {
+            background: var(--redBg);
+            border: 1px solid rgba(247, 85, 85, .2);
+            color: var(--red)
+        }
+
+        .alert-ok {
+            background: var(--greenBg);
+            border: 1px solid rgba(61, 214, 140, .2);
+            color: var(--green)
+        }
+
+        .input-wrap {
+            position: relative
+        }
+
+        .input-pfx {
+            position: absolute;
+            left: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--txt3);
+            font-size: 13px;
+            pointer-events: none;
+            font-family: var(--fontMono)
+        }
+
+        .has-pfx {
+            padding-left: 38px
+        }
+
+        .pass-toggle {
+            position: absolute;
+            right: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--txt3);
+            cursor: pointer;
+            font-size: 11.5px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: .15s ease
+        }
+
+        .pass-toggle:hover {
+            color: var(--txt);
+            background: var(--bg4)
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 20px 0;
+            color: var(--txt3);
+            font-size: 12px
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border)
+        }
+    </style>
+</head>
+
+<body>
+    <div class="auth-wrap">
+
+        <div class="auth-brand">
+            <svg width="32" height="32" viewBox="0 0 28 28" fill="none">
+                <rect width="28" height="28" rx="8" fill="#FF6B35" />
+                <path d="M8 18c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="white" stroke-width="2" stroke-linecap="round" />
+                <path d="M14 12V8M11 10l3-4 3 4" stroke="white" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                <path d="M20 18h2a1 1 0 000-2h-2" stroke="white" stroke-width="1.5" stroke-linecap="round" />
+            </svg>
+            <div>
+                <div class="auth-brand-name">CaféQueue</div>
+                <div class="auth-brand-sub">Queue Management System</div>
+            </div>
+        </div>
+
+        <div class="auth-card">
+            <div class="auth-title">Welcome back</div>
+            <div class="auth-sub">Sign in to your staff account</div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'err' if category == 'error' else 'ok' }}">{{ message }}</div>
+            {% endfor %}
+            {% endwith %}
+
+            <form method="POST" action="/login">
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <div class="input-wrap">
+                        <span class="input-pfx">@</span>
+                        <input class="form-input has-pfx" type="text" name="username" placeholder="your username"
+                            autocomplete="username" required value="{{ request.form.get('username', '') }}" />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <div class="input-wrap">
+                        <span class="input-pfx">🔒</span>
+                        <input class="form-input has-pfx" type="password" name="password" id="pw-field"
+                            placeholder="••••••••" autocomplete="current-password" required />
+                        <button type="button" class="pass-toggle" onclick="togglePw()">Show</button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:8px">
+                    Sign In →
+                </button>
+            </form>
+
+            <div class="divider">new here?</div>
+            <a href="/register" class="btn btn-block" style="display:flex;justify-content:center;border:1px solid var(--border);
+             background:var(--bg3);color:var(--txt2);padding:10px;border-radius:var(--r)">
+                Create a restaurant account
+            </a>
+        </div>
+
+        <div style="text-align:center;margin-top:18px;font-size:12px;color:var(--txt3)">
+            Staff access only &nbsp;·&nbsp; CaféQueue v1.0
+        </div>
+    </div>
+
+    <div id="toasts"></div>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        function togglePw() {
+            const f = document.getElementById('pw-field');
+            const btn = event.target;
+            f.type = f.type === 'password' ? 'text' : 'password';
+            btn.textContent = f.type === 'password' ? 'Show' : 'Hide';
+        }
+    </script>
+</body>
+
+</html>

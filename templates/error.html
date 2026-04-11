@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ code }} — CaféQueue</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: var(--bg)
+        }
+
+        .err-wrap {
+            text-align: center;
+            max-width: 420px;
+            padding: 24px
+        }
+
+        .err-code {
+            font-family: var(--fontHead);
+            font-size: 6rem;
+            font-weight: 800;
+            line-height: 1;
+            color: var(--bg3);
+            letter-spacing: -4px;
+            text-shadow: 0 0 0 1px var(--border);
+            margin-bottom: 8px;
+        }
+
+        .err-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            display: block
+        }
+
+        .err-title {
+            font-family: var(--fontHead);
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--txt);
+            margin-bottom: 10px
+        }
+
+        .err-msg {
+            font-size: 14px;
+            color: var(--txt3);
+            line-height: 1.7;
+            margin-bottom: 32px
+        }
+
+        .err-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap
+        }
+    </style>
+</head>
+
+<body>
+    <div class="err-wrap">
+        <div class="err-code">{{ code }}</div>
+        <span class="err-icon">{{ icon }}</span>
+        <div class="err-title">{{ title }}</div>
+        <p class="err-msg">{{ message }}</p>
+        <div class="err-actions">
+            <a href="/" class="btn btn-primary">← Go to Dashboard</a>
+            <a href="javascript:history.back()" class="btn">Go Back</a>
+        </div>
+        {% if code == 403 and session.get('role') != 'admin' %}
+        <p style="margin-top:24px;font-size:12px;color:var(--txt3)">
+            Logged in as <strong style="color:var(--teal)">{{ session.get('username') }}</strong>
+            ({{ session.get('role') }}) · <a href="/logout" style="color:var(--orange)">Switch account</a>
+        </p>
+        {% endif %}
+    </div>
+</body>
+
+</html>

@@ -1,101 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}CaféQueue{% endblock %}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
 </head>
+
 <body>
 
-<!-- Sidebar -->
-<aside class="sidebar">
-  <div class="sidebar-brand">
-    <div class="brand-logo">
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-        <rect width="28" height="28" rx="8" fill="#FF6B35"/>
-        <path d="M8 18c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="white" stroke-width="2" stroke-linecap="round"/>
-        <path d="M14 12V8M11 10l3-4 3 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M20 18h2a1 1 0 000-2h-2" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
-    </div>
-    <div>
-      <div class="brand-name">CaféQueue</div>
-      <div class="brand-sub">Queue Management</div>
-    </div>
-  </div>
-
-  <div class="sidebar-section-label">MAIN</div>
-  <nav class="sidebar-nav">
-    <a href="/"         class="nav-item {% if request.path=='/' %}active{% endif %}">
-      <span class="nav-icon">⊞</span><span>Dashboard</span>
-    </a>
-    <a href="/orders"   class="nav-item {% if request.path=='/orders' %}active{% endif %}">
-      <span class="nav-icon">＋</span><span>New Order</span>
-    </a>
-    <a href="/cleaning" class="nav-item {% if request.path=='/cleaning' %}active{% endif %}">
-      <span class="nav-icon">✦</span><span>Cleaning</span>
-    </a>
-  </nav>
-
-  <div class="sidebar-section-label">MONITOR</div>
-  <nav class="sidebar-nav">
-    <a href="/queues"  class="nav-item {% if request.path=='/queues' %}active{% endif %}">
-      <span class="nav-icon">≡</span><span>Queues</span>
-    </a>
-    <a href="/history" class="nav-item {% if request.path=='/history' %}active{% endif %}">
-      <span class="nav-icon">◷</span><span>History</span>
-    </a>
-    <a href="/logs"    class="nav-item {% if request.path=='/logs' %}active{% endif %}">
-      <span class="nav-icon">◎</span><span>Logs</span>
-    </a>
-  </nav>
-
-  <div class="sidebar-section-label">SYSTEM</div>
-  <nav class="sidebar-nav">
-    <a href="/setup" class="nav-item {% if request.path=='/setup' %}active{% endif %}">
-      <span class="nav-icon">⚙</span><span>Setup</span>
-    </a>
-  </nav>
-
-  <!-- Live stats pill -->
-  <div class="sidebar-footer">
-    <div class="live-pill">
-      <span class="live-dot"></span>
-      <span id="sb-ready">—</span> ready &nbsp;·&nbsp;
-      <span id="sb-occ">—</span> occupied
-    </div>
-  </div>
-</aside>
-
-<!-- Main area -->
-<div class="main-wrap">
-  <!-- Topbar -->
-  <header class="topbar">
-    <div class="topbar-left">
-      <h1 class="topbar-title">{% block page_title %}{% endblock %}</h1>
-      <p class="topbar-sub">{% block page_sub %}{% endblock %}</p>
-    </div>
-    <div class="topbar-right">
-      <div class="topbar-time" id="topbar-time"></div>
-      <div class="topbar-status">
-        <span class="status-dot"></span> Live
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="8" fill="#FF6B35" />
+          <path d="M8 18c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="white" stroke-width="2" stroke-linecap="round" />
+          <path d="M14 12V8M11 10l3-4 3 4" stroke="white" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" />
+          <path d="M20 18h2a1 1 0 000-2h-2" stroke="white" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">CaféQueue</div>
+        <div class="brand-sub">Queue Management</div>
       </div>
     </div>
-  </header>
 
-  <!-- Page content -->
-  <main class="page-content">
-    {% block content %}{% endblock %}
-  </main>
-</div>
+    <!-- Branch ID pill (always visible) -->
+    {% if session.get('branch_id') %}
+    <div style="margin:0 12px 4px;padding:7px 10px;background:rgba(255,107,53,.06);
+    border:1px solid rgba(255,107,53,.15);border-radius:var(--r);
+    display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:10.5px;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em">Branch</span>
+      <span style="font-family:var(--fontMono);font-size:12px;font-weight:600;color:var(--orange)">
+        {{ session.get('branch_id') }}
+      </span>
+    </div>
+    {% endif %}
 
-<!-- Toast container -->
-<div id="toasts"></div>
+    <div class="sidebar-section-label">MAIN</div>
+    <nav class="sidebar-nav">
+      <a href="/" class="nav-item {% if request.path=='/' %}active{% endif %}">
+        <span class="nav-icon">⊞</span><span>Dashboard</span>
+      </a>
+      <a href="/orders" class="nav-item {% if request.path=='/orders' %}active{% endif %}">
+        <span class="nav-icon">＋</span><span>New Order</span>
+      </a>
+      <a href="/cleaning" class="nav-item {% if request.path=='/cleaning' %}active{% endif %}">
+        <span class="nav-icon">✦</span><span>Cleaning</span>
+      </a>
+    </nav>
 
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
-{% block scripts %}{% endblock %}
+    <div class="sidebar-section-label">MONITOR</div>
+    <nav class="sidebar-nav">
+      <a href="/queues" class="nav-item {% if request.path=='/queues' %}active{% endif %}">
+        <span class="nav-icon">≡</span><span>Queues</span>
+      </a>
+      <a href="/history" class="nav-item {% if request.path=='/history' %}active{% endif %}">
+        <span class="nav-icon">◷</span><span>History</span>
+      </a>
+      {% if session.get('role') == 'admin' %}
+      <a href="/logs" class="nav-item {% if request.path=='/logs' %}active{% endif %}">
+        <span class="nav-icon">◎</span><span>Logs</span>
+      </a>
+      {% endif %}
+    </nav>
+
+    <div class="sidebar-section-label">SYSTEM</div>
+    <nav class="sidebar-nav">
+      {% if session.get('role') == 'admin' %}
+      <a href="/setup" class="nav-item {% if request.path=='/setup' %}active{% endif %}">
+        <span class="nav-icon">⚙</span><span>Setup</span>
+      </a>
+      <a href="/users" class="nav-item {% if request.path=='/users' %}active{% endif %}">
+        <span class="nav-icon">👥</span><span>Staff</span>
+      </a>
+      {% endif %}
+      <a href="/logout" class="nav-item" style="color:var(--txt3)" onmouseover="this.style.color='var(--red)'"
+        onmouseout="this.style.color='var(--txt3)'">
+        <span class="nav-icon">⏻</span><span>Sign Out</span>
+      </a>
+    </nav>
+
+    <!-- Live stats + user -->
+    <div class="sidebar-footer">
+      <div class="live-pill">
+        <span class="live-dot"></span>
+        <span id="sb-ready">—</span> ready &nbsp;·&nbsp;
+        <span id="sb-occ">—</span> occupied
+      </div>
+
+      {% if session.get('username') %}
+      <div style="margin-top:10px;padding:10px 12px;background:var(--bg2);
+      border:1px solid var(--border);border-radius:var(--r);
+      display:flex;align-items:center;gap:10px">
+        <div style="width:30px;height:30px;border-radius:50%;
+        background:var(--orangeGlow);border:1px solid rgba(255,107,53,.3);
+        display:flex;align-items:center;justify-content:center;
+        font-family:var(--fontHead);font-size:13px;font-weight:700;
+        color:var(--orange);flex-shrink:0">
+          {{ session.get('full_name', session.get('username', 'U'))[0].upper() }}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12.5px;font-weight:500;color:var(--txt);
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            {{ session.get('full_name', session.get('username')) }}
+          </div>
+          <div style="font-size:10.5px;color:var(--txt3)">
+            {% if session.get('role') == 'admin' %}
+            <span style="color:var(--orange)">● Admin</span>
+            {% else %}
+            <span style="color:var(--teal)">● Staff</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </aside>
+
+  <div class="main-wrap">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 class="topbar-title">{% block page_title %}{% endblock %}</h1>
+        <p class="topbar-sub">{% block page_sub %}{% endblock %}</p>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbar-time"></div>
+        <div class="topbar-status">
+          <span class="status-dot"></span> Live
+        </div>
+      </div>
+    </header>
+
+    <main class="page-content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <div id="toasts"></div>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
 </body>
+
 </html>
