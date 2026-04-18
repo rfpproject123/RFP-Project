@@ -35,6 +35,11 @@ def ensure_indexes():
     tables_col.create_index([("branch_id", 1), ("status", 1), ("number", 1)], background=True)
     tables_col.create_index([("branch_id", 1), ("order_id", 1)], background=True)
     ready_queues_col.create_index([("branch_id", 1), ("seats", 1), ("enqueued", 1)], background=True)
+    # Unique index on table_id prevents duplicate ready-queue entries
+    try:
+        ready_queues_col.create_index("table_id", unique=True, background=True)
+    except Exception:
+        pass  # index already exists
     clean_queues_col.create_index([("branch_id", 1), ("seats", 1), ("enqueued", 1)], background=True)
     priority_col.create_index([("branch_id", 1), ("priority", 1), ("enqueued", 1)], background=True)
     orders_col.create_index([("branch_id", 1), ("status", 1), ("created", -1)], background=True)
@@ -50,6 +55,55 @@ def ensure_indexes():
     users_col.create_index("branch_id", background=True)
 
 ensure_indexes()
+
+
+def repair_ready_queue(branch):
+    """
+    Safely rebuild ready_queues for one branch using tables as source of truth.
+    - Removes any entries whose table is NOT in 'ready' status (occupied/cleaning/missing)
+    - Removes duplicate entries for the same table_id (keeps only one per table)
+    - Does NOT touch orders, logs, users, or any other collection.
+    """
+    # Gather all table_ids that are truly ready for this branch
+    ready_tables = {
+        str(t["_id"]): t
+        for t in tables_col.find({"branch_id": branch, "status": "ready"})
+    }
+
+    # Remove every ready-queue entry whose table is not in ready state
+    # (occupied, cleaning, or deleted table)
+    non_ready_ids = []
+    seen_table_ids = set()
+    for rq in ready_queues_col.find({"branch_id": branch}):
+        tid = rq.get("table_id")
+        if tid not in ready_tables:
+            # Table is not ready → remove this entry
+            non_ready_ids.append(rq["_id"])
+        elif tid in seen_table_ids:
+            # Duplicate for same table → remove extra
+            non_ready_ids.append(rq["_id"])
+        else:
+            seen_table_ids.add(tid)
+
+    if non_ready_ids:
+        from bson import ObjectId as ObjId
+        ready_queues_col.delete_many({"_id": {"$in": non_ready_ids}})
+
+    # Upsert one entry per truly-ready table that has no queue entry yet
+    for tid, table in ready_tables.items():
+        if tid not in seen_table_ids:
+            ready_queues_col.update_one(
+                {"table_id": tid},
+                {"$set": {
+                    "branch_id":    branch,
+                    "table_id":     tid,
+                    "table_number": table.get("number", "?"),
+                    "seats":        table["seats"],
+                    "enqueued":     datetime.now(IST).isoformat()
+                }},
+                upsert=True
+            )
+
 
 PRIORITY_MAP = { "vip": 0, 10: 1, 8: 2, 6: 3, 4: 4, 2: 5 }
 
@@ -277,10 +331,15 @@ def api_setup():
             "branch_id": branch, "number": t["number"], "seats": seats,
             "status": "ready", "order_id": None, "created": now()
         })
-        ready_queues_col.insert_one({
-            "branch_id": branch, "table_id": str(result.inserted_id),
-            "table_number": t["number"], "seats": seats, "enqueued": now()
-        })
+        _tid = str(result.inserted_id)
+        ready_queues_col.update_one(
+            {"table_id": _tid},
+            {"$set": {
+                "branch_id": branch, "table_id": _tid,
+                "table_number": t["number"], "seats": seats, "enqueued": now()
+            }},
+            upsert=True
+        )
     log("SETUP", f"Initialized {len(tables)} tables")
     return jsonify({"ok": True, "msg": f"Setup complete — {len(tables)} tables initialized"})
 
@@ -302,7 +361,7 @@ def api_stats():
         "occupied":      tables_col.count_documents({"branch_id": branch, "status": "occupied"}),
         "cleaning":      tables_col.count_documents({"branch_id": branch, "status": "cleaning"}),
         "waiting":       priority_col.count_documents({"branch_id": branch}),
-        "active_orders": orders_col.count_documents({"branch_id": branch, "status": "active"}),
+        "active_orders": orders_col.count_documents({"branch_id": branch, "status": "active", "table_id": {"$ne": None}}),
         "total_orders":  orders_col.count_documents({"branch_id": branch}),
         "branch_id":     branch,
     })
@@ -443,10 +502,14 @@ def api_cleaned(qid):
         log("CLEANED→ALLOCATED", f"Table {table.get('number')} → {pq['name']} from priority queue")
         return jsonify({"ok": True, "msg": f"Table {table.get('number')} cleaned & allocated to {pq['name']}"})
     else:
-        ready_queues_col.insert_one({
-            "branch_id": branch, "table_id": tid,
-            "table_number": table.get("number","?"), "seats": seats, "enqueued": now()
-        })
+        ready_queues_col.update_one(
+            {"table_id": tid},
+            {"$set": {
+                "branch_id": branch, "table_id": tid,
+                "table_number": table.get("number", "?"), "seats": seats, "enqueued": now()
+            }},
+            upsert=True
+        )
         tables_col.update_one({"_id": ObjectId(tid)}, {"$set": {"status": "ready", "order_id": None}})
         log("CLEANED→READY", f"Table {table.get('number')} cleaned → ready queue")
         return jsonify({"ok": True, "msg": f"Table {table.get('number')} cleaned and returned to ready queue"})
@@ -510,15 +573,23 @@ def api_run_simulation():
     branch          = bid()
     num_simulations = int(d.get("num_simulations", 1000))
     sim_hours       = float(d.get("sim_hours", 8))
-    cleaning_min    = 10.0  # fixed default cleaning time
+    cleaning_min    = 10.0
+    date_str        = d.get("date", "")  # optional YYYY-MM-DD filter
 
-    # ── Compute arrival_rate from real order timestamps ───────────────────────
-    all_orders = list(orders_col.find(
-        {"branch_id": branch},
-        {"created": 1}
-    ).sort("created", 1))
+    # Build date-scoped query if date provided
+    date_query = {"branch_id": branch}
+    if date_str:
+        try:
+            day_start = IST.localize(datetime.strptime(date_str, "%Y-%m-%d").replace(hour=0, minute=0, second=0))
+            day_end   = IST.localize(datetime.strptime(date_str, "%Y-%m-%d").replace(hour=23, minute=59, second=59))
+            date_query["created"] = {"$gte": day_start.isoformat(), "$lte": day_end.isoformat()}
+        except Exception:
+            date_str = ""
 
-    arrival_rate = 1.0   # default fallback — 1 customer/hr
+    # ── Compute arrival_rate from real order timestamps (date-scoped) ─────────
+    all_orders = list(orders_col.find(date_query, {"created": 1}).sort("created", 1))
+
+    arrival_rate = 1.0   # default fallback
     if len(all_orders) >= 2:
         try:
             t_first = datetime.fromisoformat(all_orders[0]["created"]).astimezone(IST)
@@ -529,26 +600,23 @@ def api_run_simulation():
         except Exception:
             pass
 
-    avg_dining_min = 45.0  # default
-    dining_std_min = 15.0  # default
+    avg_dining_min = 45.0
+    dining_std_min = 15.0
 
     # Pull real table config from DB for this branch
     tables = list(tables_col.find({"branch_id": branch}, {"seats": 1, "number": 1}))
     if not tables:
         return jsonify({"ok": False, "msg": "No tables configured. Please run Setup first."}), 400
 
-    # Build seat category counts
     seat_counts = {}
     for t in tables:
         s = t["seats"]
         seat_counts[s] = seat_counts.get(s, 0) + 1
     total_tables = len(tables)
 
-    # Pull real historical dining durations if available
-    paid_orders = list(orders_col.find(
-        {"branch_id": branch, "status": "paid", "paid_at": {"$ne": None}},
-        {"created": 1, "paid_at": 1, "seats": 1}
-    ).limit(200))
+    # Dining durations — scoped to selected date if provided
+    paid_query = {**date_query, "status": "paid", "paid_at": {"$ne": None}}
+    paid_orders = list(orders_col.find(paid_query, {"created": 1, "paid_at": 1, "seats": 1}).limit(200))
 
     real_durations = []
     for o in paid_orders:
@@ -732,43 +800,59 @@ def _get_slot(hour):
 @app.route("/api/analytics/daily")
 @login_required
 def api_analytics_daily():
-    branch = bid()
-    orders = list(orders_col.find({"branch_id": branch}, {"created": 1}).sort("created", 1))
+    branch    = bid()
+    date_str  = request.args.get("date", "")  # YYYY-MM-DD or empty = all dates
+    query     = {"branch_id": branch}
 
-    # Group by date
-    day_map = {}  # date_str -> {total, slots: {morning:0,lunch:0,evening:0,dinner:0}}
+    if date_str:
+        try:
+            day_start = IST.localize(datetime.strptime(date_str, "%Y-%m-%d").replace(hour=0, minute=0, second=0))
+            day_end   = IST.localize(datetime.strptime(date_str, "%Y-%m-%d").replace(hour=23, minute=59, second=59))
+            query["created"] = {"$gte": day_start.isoformat(), "$lte": day_end.isoformat()}
+        except Exception:
+            pass
+
+    orders = list(orders_col.find(query, {"created": 1}).sort("created", 1))
+
+    day_map = {}
     for o in orders:
         try:
             dt = datetime.fromisoformat(o["created"]).astimezone(IST)
         except Exception:
             continue
-        date_str = dt.strftime("%Y-%m-%d")
-        hour     = dt.hour
-        slot     = _get_slot(hour)
-        if date_str not in day_map:
-            day_map[date_str] = {"total": 0, "slots": {"morning": 0, "lunch": 0, "evening": 0, "dinner": 0}}
-        day_map[date_str]["total"] += 1
+        ds   = dt.strftime("%Y-%m-%d")
+        hour = dt.hour
+        slot = _get_slot(hour)
+        if ds not in day_map:
+            day_map[ds] = {"total": 0, "slots": {"morning": 0, "lunch": 0, "evening": 0, "dinner": 0}}
+        day_map[ds]["total"] += 1
         if slot:
-            day_map[date_str]["slots"][slot] += 1
+            day_map[ds]["slots"][slot] += 1
 
     result = []
-    for date_str in sorted(day_map.keys()):
-        d    = day_map[date_str]
+    for ds in sorted(day_map.keys()):
+        d    = day_map[ds]
         peak = max(d["slots"], key=lambda k: d["slots"][k])
-        result.append({
-            "date":      date_str,
-            "customers": d["total"],
-            "peak":      peak,
-            "slots":     d["slots"],
-        })
+        result.append({"date": ds, "customers": d["total"], "peak": peak, "slots": d["slots"]})
     return jsonify(result)
 
 
 @app.route("/api/analytics/timeslots")
 @login_required
 def api_analytics_timeslots():
-    branch = bid()
-    orders = list(orders_col.find({"branch_id": branch}, {"created": 1, "seats": 1}))
+    branch   = bid()
+    date_str = request.args.get("date", "")
+    query    = {"branch_id": branch}
+
+    if date_str:
+        try:
+            day_start = IST.localize(datetime.strptime(date_str, "%Y-%m-%d").replace(hour=0, minute=0, second=0))
+            day_end   = IST.localize(datetime.strptime(date_str, "%Y-%m-%d").replace(hour=23, minute=59, second=59))
+            query["created"] = {"$gte": day_start.isoformat(), "$lte": day_end.isoformat()}
+        except Exception:
+            pass
+
+    orders = list(orders_col.find(query, {"created": 1, "seats": 1}))
 
     slots = {
         "morning": {"customers": 0, "total_seats": 0},
@@ -790,36 +874,125 @@ def api_analytics_timeslots():
     result = {}
     for slot, data in slots.items():
         c = data["customers"]
-        result[slot] = {
-            "customers":   c,
-            "avg_seats":   round(data["total_seats"] / c, 1) if c > 0 else 0,
-        }
+        result[slot] = {"customers": c, "avg_seats": round(data["total_seats"] / c, 1) if c > 0 else 0}
     return jsonify(result)
 
 
 @app.route("/api/analytics/timeline")
 @login_required
 def api_analytics_timeline():
-    branch = bid()
-    orders = list(orders_col.find({"branch_id": branch}, {"created": 1}).sort("created", 1))
+    branch   = bid()
+    date_str = request.args.get("date", "")
+    query    = {"branch_id": branch}
+
+    if date_str:
+        try:
+            day_start = IST.localize(datetime.strptime(date_str, "%Y-%m-%d").replace(hour=0, minute=0, second=0))
+            day_end   = IST.localize(datetime.strptime(date_str, "%Y-%m-%d").replace(hour=23, minute=59, second=59))
+            query["created"] = {"$gte": day_start.isoformat(), "$lte": day_end.isoformat()}
+        except Exception:
+            pass
+
+    orders = list(orders_col.find(query, {"created": 1}).sort("created", 1))
     bucket_map = {}
     for o in orders:
         try:
             dt = datetime.fromisoformat(o["created"]).astimezone(IST)
         except Exception:
             continue
-        # Round down to nearest 30-min bucket
         bucket_min = (dt.minute // 30) * 30
         bucket_key = dt.strftime(f"%H:{bucket_min:02d}")
         bucket_map[bucket_key] = bucket_map.get(bucket_key, 0) + 1
-    result = [{"time": k, "customers": v}
-              for k, v in sorted(bucket_map.items())]
+    result = [{"time": k, "customers": v} for k, v in sorted(bucket_map.items())]
     return jsonify(result)
+
+
+@app.route("/api/analytics/dates")
+@login_required
+def api_analytics_dates():
+    """Return sorted list of all dates that have order data for this branch."""
+    branch = bid()
+    orders = list(orders_col.find({"branch_id": branch}, {"created": 1}))
+    date_set = set()
+    for o in orders:
+        try:
+            dt = datetime.fromisoformat(o["created"]).astimezone(IST)
+            date_set.add(dt.strftime("%Y-%m-%d"))
+        except Exception:
+            continue
+    return jsonify(sorted(date_set))
 
 
 @app.route("/analytics")
 @login_required
 def page_analytics(): return render_template("analytics.html")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# QUEUE REPAIR (admin-safe, no data loss)
+# ═══════════════════════════════════════════════════════════════════════════════
+@app.route("/api/queue/repair", methods=["POST"])
+@admin_required
+def api_repair_queue():
+    branch = bid()
+    repair_ready_queue(branch)
+    ready_count = ready_queues_col.count_documents({"branch_id": branch})
+    log("QUEUE_REPAIR", f"Ready queue rebuilt. {ready_count} entries now.")
+    return jsonify({"ok": True, "msg": f"Ready queue repaired. {ready_count} entries.", "ready": ready_count})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROFILE MANAGEMENT
+# ═══════════════════════════════════════════════════════════════════════════════
+@app.route("/api/users/update-profile", methods=["POST"])
+@login_required
+def api_update_profile():
+    d         = request.json or {}
+    uid       = session.get("user_id")
+    full_name = d.get("full_name", "").strip()
+    username  = d.get("username", "").strip().lower()
+    password  = d.get("password", "").strip()
+
+    if not username:
+        return jsonify({"ok": False, "msg": "Username cannot be empty"}), 400
+    if not all(c.isalnum() or c == "_" for c in username):
+        return jsonify({"ok": False, "msg": "Username may only contain letters, numbers, underscores"}), 400
+    if password and len(password) < 6:
+        return jsonify({"ok": False, "msg": "Password must be at least 6 characters"}), 400
+
+    # Check username uniqueness (exclude current user)
+    existing = users_col.find_one({"username": username, "_id": {"$ne": ObjectId(uid)}})
+    if existing:
+        return jsonify({"ok": False, "msg": f"Username '{username}' is already taken"}), 409
+
+    updates = {}
+    if full_name:
+        updates["full_name"] = full_name
+    if username:
+        updates["username"] = username
+    if password:
+        salt, hashed     = hash_password(password)
+        updates["salt"]     = salt
+        updates["password"] = hashed
+
+    if not updates:
+        return jsonify({"ok": False, "msg": "No changes provided"}), 400
+
+    users_col.update_one({"_id": ObjectId(uid)}, {"$set": updates})
+
+    # Keep session in sync
+    if "username" in updates:
+        session["username"] = updates["username"]
+    if "full_name" in updates:
+        session["full_name"] = updates["full_name"]
+
+    log("PROFILE_UPDATE", f"User '{session['username']}' updated their profile")
+    return jsonify({"ok": True, "msg": "Profile updated successfully"})
+
+
+@app.route("/profile")
+@login_required
+def page_profile(): return render_template("profile.html")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ERROR HANDLERS

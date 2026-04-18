@@ -1,49 +1,69 @@
 {% extends "base.html" %}
 {% block title %}Analytics — CaféQueue{% endblock %}
 {% block page_title %}Analytics{% endblock %}
-{% block page_sub %}Real-time insights from your branch data (IST){% endblock %}
+{% block page_sub %}Per-day insights from your branch data (IST){% endblock %}
 
 {% block content %}
+
+<!-- ── Date selector bar ──────────────────────────────────────────────────── -->
+<div style="display:flex;align-items:center;gap:14px;margin-bottom:22px;
+  padding:14px 18px;background:var(--bg1);border:1px solid var(--border);
+  border-radius:var(--r2);flex-wrap:wrap">
+
+    <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:13px;color:var(--txt3);white-space:nowrap">Viewing date:</span>
+        <select id="date-select" class="form-select" style="width:160px;font-family:var(--fontMono);font-size:13px"
+            onchange="onDateChange()">
+            <option value="">Loading…</option>
+        </select>
+    </div>
+
+    <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
+        <span id="date-badge" class="badge b-ready" style="font-size:10.5px">—</span>
+        <button class="btn btn-sm" onclick="loadAll()">↺ Refresh</button>
+        <!-- Repair queue button (admin only) -->
+        <button class="btn btn-sm" id="repair-btn" style="border-color:rgba(245,166,35,.3);color:var(--amber)"
+            onclick="repairQueue()" title="Fix duplicate ready-queue entries">
+            🔧 Repair Queue
+        </button>
+    </div>
+</div>
 
 <!-- ── Summary cards ─────────────────────────────────────────────────────── -->
 <div class="grid-4" style="margin-bottom:24px">
     <div class="stat-card">
         <div class="stat-icon">📦</div>
         <div class="stat-val" id="ac-total" style="color:var(--orange)">—</div>
-        <div class="stat-label">Total Orders</div>
-        <div class="stat-sub">all time</div>
+        <div class="stat-label">Orders</div>
+        <div class="stat-sub" id="ac-date-sub">selected day</div>
     </div>
     <div class="stat-card">
         <div class="stat-icon">📅</div>
         <div class="stat-val" id="ac-days" style="color:var(--teal)">—</div>
         <div class="stat-label">Days Active</div>
-        <div class="stat-sub">with recorded orders</div>
+        <div class="stat-sub">total in data</div>
     </div>
     <div class="stat-card">
         <div class="stat-icon">🏆</div>
         <div class="stat-val" id="ac-peak-slot" style="color:var(--purple);font-size:1rem;padding-top:4px">—</div>
         <div class="stat-label">Busiest Slot</div>
-        <div class="stat-sub">overall</div>
+        <div class="stat-sub">this day</div>
     </div>
     <div class="stat-card">
         <div class="stat-icon">📊</div>
         <div class="stat-val" id="ac-avg-day" style="color:var(--green)">—</div>
         <div class="stat-label">Avg / Day</div>
-        <div class="stat-sub">customers</div>
+        <div class="stat-sub">all-time avg</div>
     </div>
 </div>
 
-<!-- ── Row 1: Daily + Time Slots ─────────────────────────────────────────── -->
+<!-- ── Row 1: Daily overview + Time Slots ────────────────────────────────── -->
 <div class="grid-2" style="margin-bottom:24px">
 
-    <!-- Daily customers line chart -->
     <div class="card">
         <div class="card-header">
-            <span class="card-title">Daily Customers</span>
-            <div style="display:flex;gap:8px;align-items:center">
-                <span class="badge b-ready" id="daily-range" style="font-size:10px">—</span>
-                <button class="btn btn-sm" onclick="loadAll()">↺</button>
-            </div>
+            <span class="card-title">Daily Customers Overview</span>
+            <span class="badge b-ready" id="daily-range" style="font-size:10px">all dates</span>
         </div>
         <div id="daily-empty" style="display:none"></div>
         <div style="position:relative;height:220px">
@@ -51,11 +71,10 @@
         </div>
     </div>
 
-    <!-- Time slot bar chart -->
     <div class="card">
         <div class="card-header">
             <span class="card-title">Time Slot Distribution</span>
-            <span class="badge b-waiting">4 slots</span>
+            <span class="badge b-waiting" id="slot-date-label">—</span>
         </div>
         <div style="position:relative;height:220px">
             <canvas id="chart-slots"></canvas>
@@ -65,12 +84,12 @@
 
 </div>
 
-<!-- ── Row 2: Timeline (continuous 30-min buckets) ────────────────────────── -->
+<!-- ── Timeline for selected date ────────────────────────────────────────── -->
 <div class="card" style="margin-bottom:24px">
     <div class="card-header">
         <span class="card-title">Hourly Traffic Timeline</span>
         <div style="display:flex;gap:8px;align-items:center">
-            <span style="font-size:11px;color:var(--txt3)">30-minute buckets · all-time aggregated</span>
+            <span id="timeline-date-label" style="font-size:11px;color:var(--txt3)">30-min buckets</span>
             <span class="badge"
                 style="background:var(--tealBg);color:var(--teal);border:1px solid rgba(56,189,248,.15)">IST</span>
         </div>
@@ -79,46 +98,38 @@
     <div style="position:relative;height:200px">
         <canvas id="chart-timeline"></canvas>
     </div>
-    <!-- Peak bucket callout -->
-    <div id="timeline-peak" style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap"></div>
+    <div id="timeline-peak" style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap"></div>
 </div>
 
-<!-- ── Row 3: Simulation ─────────────────────────────────────────────────── -->
+<!-- ── Simulation ─────────────────────────────────────────────────────────── -->
 <div class="card" style="margin-bottom:24px">
     <div class="card-header">
         <span class="card-title">Monte Carlo Simulation</span>
         <div style="display:flex;gap:8px;align-items:center">
-            <span class="badge" id="sim-data-badge"
+            <span id="sim-date-badge" class="badge"
                 style="background:var(--tealBg);color:var(--teal);border:1px solid rgba(56,189,248,.15)">
                 data-driven
             </span>
-            <button class="btn btn-sm btn-primary" id="sim-btn" onclick="runSim()">▶ Run Simulation</button>
+            <button class="btn btn-sm btn-primary" id="sim-btn" onclick="runSim()">▶ Run for Selected Day</button>
         </div>
     </div>
 
-    <!-- Idle -->
-    <div id="sim-idle" style="padding:28px;text-align:center">
-        <div style="font-size:2.2rem;margin-bottom:10px">🎲</div>
-        <div style="font-size:13.5px;color:var(--txt2);margin-bottom:4px">Monte Carlo simulation using your real order
-            data</div>
-        <div style="font-size:12px;color:var(--txt3)">Arrival rate and dining duration auto-computed from historical
-            orders</div>
+    <div id="sim-idle" style="padding:26px;text-align:center">
+        <div style="font-size:2rem;margin-bottom:10px">🎲</div>
+        <div style="font-size:13px;color:var(--txt2);margin-bottom:4px">Select a date above, then run simulation</div>
+        <div style="font-size:12px;color:var(--txt3)">Uses only that day's orders for arrival rate and dining duration
+        </div>
     </div>
 
-    <!-- Running -->
-    <div id="sim-running" style="display:none;padding:28px;text-align:center">
+    <div id="sim-running" style="display:none;padding:26px;text-align:center">
         <div class="spin" style="margin:0 auto 14px"></div>
-        <div style="font-size:13px;color:var(--txt3)">Running 1,000 simulations…</div>
+        <div style="font-size:13px;color:var(--txt3)" id="sim-running-label">Running simulations…</div>
     </div>
 
-    <!-- Results -->
     <div id="sim-results" style="display:none">
-
-        <!-- Recommendation -->
         <div id="sim-rec" style="padding:12px 16px;border-radius:var(--r);margin-bottom:18px;
              font-size:13.5px;border:1px solid var(--border);background:var(--bg3)"></div>
 
-        <!-- Key metrics -->
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
             <div style="padding:14px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border)">
                 <div
@@ -146,27 +157,25 @@
             </div>
         </div>
 
-        <!-- Secondary params -->
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px">
             <div style="padding:10px 12px;background:var(--bg2);border-radius:var(--r);border:1px solid var(--border)">
                 <div style="font-size:11px;color:var(--txt3)">Arrival Rate</div>
-                <div style="font-size:13.5px;font-weight:600;color:var(--txt);margin-top:3px" id="sr-arrival">—</div>
+                <div style="font-size:13px;font-weight:600;color:var(--txt);margin-top:3px" id="sr-arrival">—</div>
             </div>
             <div style="padding:10px 12px;background:var(--bg2);border-radius:var(--r);border:1px solid var(--border)">
                 <div style="font-size:11px;color:var(--txt3)">Avg Dining Time</div>
-                <div style="font-size:13.5px;font-weight:600;color:var(--txt);margin-top:3px" id="sr-dining">—</div>
+                <div style="font-size:13px;font-weight:600;color:var(--txt);margin-top:3px" id="sr-dining">—</div>
             </div>
             <div style="padding:10px 12px;background:var(--bg2);border-radius:var(--r);border:1px solid var(--border)">
                 <div style="font-size:11px;color:var(--txt3)">Data Source</div>
-                <div style="font-size:13.5px;font-weight:600;color:var(--txt);margin-top:3px" id="sr-source">—</div>
+                <div style="font-size:13px;font-weight:600;color:var(--txt);margin-top:3px" id="sr-source">—</div>
             </div>
         </div>
 
-        <!-- Wait time distribution histogram -->
         <div>
             <div
                 style="font-size:11px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">
-                Wait Time Distribution (across 1,000 simulations)
+                Wait Time Distribution (1,000 simulations)
             </div>
             <div style="position:relative;height:140px">
                 <canvas id="chart-wait"></canvas>
@@ -175,7 +184,7 @@
     </div>
 </div>
 
-<!-- ── Row 4: Peak breakdown + Slot performance ───────────────────────────── -->
+<!-- ── Peak breakdown + Slot performance ─────────────────────────────────── -->
 <div class="grid-2">
     <div class="card">
         <div class="card-title">Daily Peak Slot Frequency</div>
@@ -198,73 +207,85 @@
     Chart.defaults.font.family = "'Inter',sans-serif";
     Chart.defaults.font.size = 11;
 
-    const C = {
-        orange: '#FF6B35', green: '#3DD68C', teal: '#38BDF8',
-        purple: '#A78BFA', amber: '#F5A623', red: '#F75555',
-        txt2: '#8B8FA8', txt3: '#52566A',
-    };
+    const C = { orange: '#FF6B35', green: '#3DD68C', teal: '#38BDF8', purple: '#A78BFA', amber: '#F5A623' };
     const SLOT_COLOR = { morning: C.amber, lunch: C.orange, evening: C.teal, dinner: C.purple };
     const SLOT_ICON = { morning: '🌅', lunch: '☀️', evening: '🌆', dinner: '🌙' };
     const SLOT_LABEL = {
         morning: 'Morning (6–11am)', lunch: 'Lunch (11am–3pm)',
         evening: 'Evening (3–6pm)', dinner: 'Dinner (6–11pm)'
     };
+    const TT = { backgroundColor: '#1F2129', borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1, padding: 10, cornerRadius: 6 };
 
     let cDaily = null, cSlots = null, cTimeline = null, cWait = null;
     const kill = c => { if (c) c.destroy(); return null; };
 
-    const TOOLTIP_STYLE = {
-        backgroundColor: '#1F2129', borderColor: 'rgba(255,255,255,0.08)',
-        borderWidth: 1, padding: 10, cornerRadius: 6,
-    };
+    /* ── State ───────────────────────────────────────────────────────────────── */
+    let availableDates = [];   // sorted list of YYYY-MM-DD strings from /api/analytics/dates
+    let allDailyData = [];   // full daily dataset (all dates, no filter)
+    let selectedDate = '';
 
-    /* ── Daily line chart ────────────────────────────────────────────────────── */
+    /* ── Date selector init ──────────────────────────────────────────────────── */
+    async function initDateSelector() {
+        availableDates = await api('/api/analytics/dates');
+        const sel = document.getElementById('date-select');
+        if (!availableDates.length) {
+            sel.innerHTML = '<option value="">No data yet</option>';
+            return;
+        }
+        sel.innerHTML = availableDates
+            .slice()
+            .reverse()  // latest first
+            .map(d => `<option value="${d}">${d}</option>`)
+            .join('');
+        selectedDate = availableDates[availableDates.length - 1]; // default = latest
+        sel.value = selectedDate;
+    }
+
+    function onDateChange() {
+        selectedDate = document.getElementById('date-select').value;
+        loadDayCharts();
+        // Reset simulation results when date changes
+        document.getElementById('sim-idle').style.display = '';
+        document.getElementById('sim-results').style.display = 'none';
+        document.getElementById('sim-running').style.display = 'none';
+        document.getElementById('sim-date-badge').textContent =
+            selectedDate ? `📅 ${selectedDate}` : 'data-driven';
+    }
+
+    /* ── Charts ──────────────────────────────────────────────────────────────── */
     function renderDaily(data) {
         cDaily = kill(cDaily);
         const el = document.getElementById('daily-empty');
-        if (!data.length) {
-            el.innerHTML = emptyHTML('📭', 'No orders recorded yet');
-            el.style.display = '';
-            return;
-        }
+        if (!data.length) { el.innerHTML = emptyHTML('📭', 'No order data yet'); el.style.display = ''; return; }
         el.style.display = 'none';
 
-        // Update range badge
-        if (data.length) {
-            const first = data[0].date, last = data[data.length - 1].date;
-            document.getElementById('daily-range').textContent =
-                first === last ? first : first + ' → ' + last;
-        }
+        // Update summary cards with all-time data
+        const total = data.reduce((s, d) => s + d.customers, 0);
+        const days = data.length;
+        document.getElementById('ac-days').textContent = days;
+        document.getElementById('ac-avg-day').textContent = days > 0 ? Math.round(total / days) : 0;
+
+        const first = data[0].date, last = data[data.length - 1].date;
+        document.getElementById('daily-range').textContent = first === last ? first : first + ' → ' + last;
 
         cDaily = new Chart(document.getElementById('chart-daily'), {
             type: 'line',
             data: {
                 labels: data.map(d => d.date),
                 datasets: [{
-                    label: 'Customers',
-                    data: data.map(d => d.customers),
-                    borderColor: C.orange,
-                    backgroundColor: 'rgba(255,107,53,0.07)',
-                    borderWidth: 2,
-                    pointBackgroundColor: C.orange,
-                    pointRadius: data.length > 20 ? 2 : 4,
-                    pointHoverRadius: 6,
-                    fill: true,
-                    tension: 0.38,
+                    label: 'Customers', data: data.map(d => d.customers),
+                    borderColor: C.orange, backgroundColor: 'rgba(255,107,53,0.07)',
+                    borderWidth: 2, pointBackgroundColor: C.orange,
+                    pointRadius: data.length > 20 ? 2 : 4, pointHoverRadius: 6,
+                    fill: true, tension: 0.38,
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        ...TOOLTIP_STYLE,
-                        callbacks: {
-                            afterLabel: ctx => {
-                                const d = data[ctx.dataIndex];
-                                return `Peak: ${SLOT_ICON[d.peak]} ${d.peak}`;
-                            }
-                        }
+                    legend: { display: false }, tooltip: {
+                        ...TT,
+                        callbacks: { afterLabel: ctx => `Peak: ${SLOT_ICON[data[ctx.dataIndex].peak]} ${data[ctx.dataIndex].peak}` }
                     }
                 },
                 scales: {
@@ -275,111 +296,112 @@
         });
     }
 
-    /* ── Slot bar chart ──────────────────────────────────────────────────────── */
-    function renderSlots(data) {
+    function renderSlots(data, dateLabel) {
         cSlots = kill(cSlots);
         const order = ['morning', 'lunch', 'evening', 'dinner'];
-        const labels = order.map(s => SLOT_ICON[s] + ' ' + s[0].toUpperCase() + s.slice(1));
-        const values = order.map(s => data[s]?.customers || 0);
         const colors = order.map(s => SLOT_COLOR[s]);
+
+        document.getElementById('slot-date-label').textContent = dateLabel || 'all dates';
+
+        // Summary: peak slot for selected day
+        const topSlot = order.reduce((a, b) => (data[a]?.customers || 0) > (data[b]?.customers || 0) ? a : b);
+        document.getElementById('ac-peak-slot').textContent =
+            SLOT_ICON[topSlot] + ' ' + topSlot[0].toUpperCase() + topSlot.slice(1);
+
+        const dayOrders = order.reduce((s, sl) => s + (data[sl]?.customers || 0), 0);
+        document.getElementById('ac-total').textContent = dayOrders;
+        document.getElementById('ac-date-sub').textContent = dateLabel || 'selected day';
 
         cSlots = new Chart(document.getElementById('chart-slots'), {
             type: 'bar',
             data: {
-                labels,
+                labels: order.map(s => SLOT_ICON[s] + ' ' + s[0].toUpperCase() + s.slice(1)),
                 datasets: [{
-                    label: 'Customers',
-                    data: values,
-                    backgroundColor: colors.map(c => c + '2a'),
-                    borderColor: colors,
-                    borderWidth: 2,
-                    borderRadius: 6,
+                    label: 'Customers', data: order.map(s => data[s]?.customers || 0),
+                    backgroundColor: colors.map(c => c + '2a'), borderColor: colors,
+                    borderWidth: 2, borderRadius: 6,
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        ...TOOLTIP_STYLE,
-                        callbacks: {
-                            afterLabel: ctx => `Avg seats: ${data[order[ctx.dataIndex]]?.avg_seats || 0}`
-                        }
+                    legend: { display: false }, tooltip: {
+                        ...TT,
+                        callbacks: { afterLabel: ctx => `Avg seats: ${data[order[ctx.dataIndex]]?.avg_seats || 0}` }
                     }
                 },
-                scales: {
-                    x: { grid: { display: false } },
-                    y: { grid: { color: 'rgba(255,255,255,0.03)' }, beginAtZero: true, ticks: { precision: 0 } }
-                }
+                scales: { x: { grid: { display: false } }, y: { grid: { color: 'rgba(255,255,255,0.03)' }, beginAtZero: true, ticks: { precision: 0 } } }
             }
         });
 
-        // Slot breakdown table
+        // Slot table
         const total = order.reduce((s, k) => s + (data[k]?.customers || 0), 0);
         document.getElementById('slot-table').innerHTML = `
   <table class="data-table">
     <thead><tr><th>Slot</th><th>Customers</th><th>Avg Seats</th><th>Share</th></tr></thead>
     <tbody>${order.map(sl => {
-            const c = data[sl]?.customers || 0;
-            const pct = total > 0 ? Math.round(c / total * 100) : 0;
+            const c = data[sl]?.customers || 0, pct = total > 0 ? Math.round(c / total * 100) : 0;
             return `<tr>
         <td><span style="color:${SLOT_COLOR[sl]}">${SLOT_ICON[sl]}</span> ${SLOT_LABEL[sl]}</td>
-        <td class="txt-main">${c}</td>
-        <td>${data[sl]?.avg_seats || 0}</td>
-        <td>
-          <div style="display:flex;align-items:center;gap:8px">
-            <div style="flex:1;height:3px;background:var(--bg4);border-radius:2px">
-              <div style="width:${pct}%;height:100%;background:${SLOT_COLOR[sl]};border-radius:2px"></div>
-            </div>
-            <span class="mono" style="font-size:11px;color:var(--txt3);width:28px">${pct}%</span>
+        <td class="txt-main">${c}</td><td>${data[sl]?.avg_seats || 0}</td>
+        <td><div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;height:3px;background:var(--bg4);border-radius:2px">
+            <div style="width:${pct}%;height:100%;background:${SLOT_COLOR[sl]};border-radius:2px"></div>
           </div>
-        </td>
-      </tr>`;
+          <span class="mono" style="font-size:11px;color:var(--txt3);width:28px">${pct}%</span>
+        </div></td></tr>`;
         }).join('')}</tbody>
   </table>`;
+
+        // Slot perf ranking
+        const entries = Object.entries(data).sort((a, b) => b[1].customers - a[1].customers);
+        document.getElementById('slot-perf').innerHTML = entries.map(([sl, d2], i) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="width:20px;height:20px;border-radius:50%;background:${SLOT_COLOR[sl]}22;
+        border:1px solid ${SLOT_COLOR[sl]}44;display:flex;align-items:center;justify-content:center;
+        font-family:var(--fontMono);font-size:10px;color:${SLOT_COLOR[sl]};flex-shrink:0">${i + 1}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500;color:var(--txt)">${SLOT_LABEL[sl]}</div>
+        <div style="font-size:11px;color:var(--txt3)">avg ${d2.avg_seats} seats/order</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:var(--fontMono);font-size:13px;color:${SLOT_COLOR[sl]}">${d2.customers}</div>
+        <div style="font-size:10px;color:var(--txt3)">customers</div>
+      </div>
+    </div>`).join('');
     }
 
-    /* ── Timeline continuous chart ───────────────────────────────────────────── */
-    function renderTimeline(data) {
+    function renderTimeline(data, dateLabel) {
         cTimeline = kill(cTimeline);
+        document.getElementById('timeline-date-label').textContent =
+            (dateLabel ? dateLabel + ' · ' : '') + '30-min buckets';
+
         const el = document.getElementById('timeline-empty');
-        if (!data.length) {
-            el.innerHTML = emptyHTML('📭', 'No timeline data yet');
-            el.style.display = '';
-            return;
-        }
+        if (!data.length) { el.innerHTML = emptyHTML('📭', 'No traffic data for this day'); el.style.display = ''; return; }
         el.style.display = 'none';
 
-        // Gradient fill
         const ctx = document.getElementById('chart-timeline').getContext('2d');
         const grad = ctx.createLinearGradient(0, 0, 0, 200);
-        grad.addColorStop(0, 'rgba(56,189,248,0.18)');
-        grad.addColorStop(1, 'rgba(56,189,248,0.01)');
+        grad.addColorStop(0, 'rgba(56,189,248,0.18)'); grad.addColorStop(1, 'rgba(56,189,248,0.01)');
 
         cTimeline = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: data.map(d => d.time),
                 datasets: [{
-                    label: 'Customers',
-                    data: data.map(d => d.customers),
-                    borderColor: C.teal,
-                    backgroundColor: grad,
-                    borderWidth: 2,
-                    pointBackgroundColor: C.teal,
-                    pointRadius: data.length > 40 ? 0 : 3,
-                    pointHoverRadius: 5,
-                    fill: true,
-                    tension: 0.4,
+                    label: 'Customers', data: data.map(d => d.customers),
+                    borderColor: C.teal, backgroundColor: grad, borderWidth: 2,
+                    pointBackgroundColor: C.teal, pointRadius: data.length > 40 ? 0 : 3, pointHoverRadius: 5,
+                    fill: true, tension: 0.4
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        ...TOOLTIP_STYLE,
-                        callbacks: { label: ctx => ` ${ctx.parsed.y} customers at ${ctx.label}` }
+                    legend: { display: false }, tooltip: {
+                        ...TT, callbacks: {
+                            label: ctx => ` ${ctx.parsed.y} customers at ${ctx.label}`
+                        }
                     }
                 },
                 scales: {
@@ -389,7 +411,6 @@
             }
         });
 
-        // Peak callout chips
         const sorted = [...data].sort((a, b) => b.customers - a.customers).slice(0, 3);
         document.getElementById('timeline-peak').innerHTML = sorted.map((d, i) => `
     <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;
@@ -400,7 +421,6 @@
     </div>`).join('');
     }
 
-    /* ── Wait histogram chart ────────────────────────────────────────────────── */
     function renderWaitHist(histogram) {
         cWait = kill(cWait);
         if (!histogram?.length) return;
@@ -409,12 +429,8 @@
             data: {
                 labels: histogram.map(h => h.label + ' min'),
                 datasets: [{
-                    label: 'Frequency',
-                    data: histogram.map(h => h.count),
-                    backgroundColor: 'rgba(56,189,248,0.18)',
-                    borderColor: C.teal,
-                    borderWidth: 1.5,
-                    borderRadius: 3,
+                    label: 'Frequency', data: histogram.map(h => h.count),
+                    backgroundColor: 'rgba(56,189,248,0.18)', borderColor: C.teal, borderWidth: 1.5, borderRadius: 3
                 }]
             },
             options: {
@@ -428,21 +444,6 @@
         });
     }
 
-    /* ── Summary cards ───────────────────────────────────────────────────────── */
-    function updateCards(daily, slots) {
-        const total = daily.reduce((s, d) => s + d.customers, 0);
-        const days = daily.length;
-        const avgDay = days > 0 ? Math.round(total / days) : 0;
-        const topSlot = Object.entries(slots).sort((a, b) => b[1].customers - a[1].customers)[0]?.[0];
-
-        document.getElementById('ac-total').textContent = total;
-        document.getElementById('ac-days').textContent = days;
-        document.getElementById('ac-avg-day').textContent = avgDay;
-        document.getElementById('ac-peak-slot').textContent =
-            topSlot ? SLOT_ICON[topSlot] + ' ' + topSlot[0].toUpperCase() + topSlot.slice(1) : '—';
-    }
-
-    /* ── Peak breakdown ──────────────────────────────────────────────────────── */
     function renderPeakBreakdown(daily) {
         const el = document.getElementById('peak-breakdown');
         if (!daily.length) { el.innerHTML = emptyHTML('📭', 'No data yet'); return; }
@@ -450,8 +451,7 @@
         daily.forEach(d => { if (counts[d.peak] !== undefined) counts[d.peak]++; });
         const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
         el.innerHTML = sorted.map(([sl, cnt]) => `
-    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;
-      border-bottom:1px solid var(--border)">
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
       <span style="font-size:1.2rem">${SLOT_ICON[sl]}</span>
       <div style="flex:1">
         <div style="font-size:13px;font-weight:500;color:var(--txt);text-transform:capitalize">${sl}</div>
@@ -461,28 +461,21 @@
     </div>`).join('');
     }
 
-    /* ── Slot performance ────────────────────────────────────────────────────── */
-    function renderSlotPerf(slots) {
-        const el = document.getElementById('slot-perf');
-        const entries = Object.entries(slots).sort((a, b) => b[1].customers - a[1].customers);
-        el.innerHTML = entries.map(([sl, data], i) => `
-    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;
-      border-bottom:1px solid var(--border)">
-      <div style="width:20px;height:20px;border-radius:50%;
-        background:${SLOT_COLOR[sl]}22;border:1px solid ${SLOT_COLOR[sl]}44;
-        display:flex;align-items:center;justify-content:center;
-        font-family:var(--fontMono);font-size:10px;color:${SLOT_COLOR[sl]};flex-shrink:0">
-        ${i + 1}
-      </div>
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:500;color:var(--txt)">${SLOT_LABEL[sl]}</div>
-        <div style="font-size:11px;color:var(--txt3)">avg ${data.avg_seats} seats/order</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-family:var(--fontMono);font-size:13px;color:${SLOT_COLOR[sl]}">${data.customers}</div>
-        <div style="font-size:10px;color:var(--txt3)">customers</div>
-      </div>
-    </div>`).join('');
+    /* ── Load day-specific charts ────────────────────────────────────────────── */
+    async function loadDayCharts() {
+        const dateParam = selectedDate ? `?date=${selectedDate}` : '';
+        const label = selectedDate || 'all dates';
+
+        document.getElementById('date-badge').textContent = selectedDate || 'all dates';
+        document.getElementById('sim-date-badge').textContent = selectedDate ? `📅 ${selectedDate}` : 'all-time';
+
+        const [slots, timeline] = await Promise.all([
+            api(`/api/analytics/timeslots${dateParam}`),
+            api(`/api/analytics/timeline${dateParam}`),
+        ]);
+
+        renderSlots(slots, label);
+        renderTimeline(timeline, label);
     }
 
     /* ── Run simulation ──────────────────────────────────────────────────────── */
@@ -490,9 +483,14 @@
         document.getElementById('sim-idle').style.display = 'none';
         document.getElementById('sim-results').style.display = 'none';
         document.getElementById('sim-running').style.display = '';
+        document.getElementById('sim-running-label').textContent =
+            selectedDate ? `Running simulations for ${selectedDate}…` : 'Running simulations…';
         document.getElementById('sim-btn').disabled = true;
 
-        const res = await api('/api/simulation/run', 'POST', { num_simulations: 1000, sim_hours: 8 });
+        const payload = { num_simulations: 1000, sim_hours: 8 };
+        if (selectedDate) payload.date = selectedDate;
+
+        const res = await api('/api/simulation/run', 'POST', payload);
 
         document.getElementById('sim-running').style.display = 'none';
         document.getElementById('sim-btn').disabled = false;
@@ -510,10 +508,9 @@
         document.getElementById('sr-source').textContent =
             res.data_source === 'historical'
                 ? '✅ ' + res.historical_orders + ' real orders'
-                : '⚠️ defaults (< 10 paid orders)';
+                : '⚠️ defaults (<10 paid orders)';
 
-        const rec = res.recommendation;
-        const recEl = document.getElementById('sim-rec');
+        const rec = res.recommendation, recEl = document.getElementById('sim-rec');
         recEl.textContent = rec;
         recEl.style.borderColor = rec.startsWith('✅') ? 'rgba(61,214,140,.25)'
             : rec.startsWith('⏳') ? 'rgba(245,166,35,.25)'
@@ -523,22 +520,33 @@
         document.getElementById('sim-results').style.display = '';
     }
 
-    /* ── Load all ────────────────────────────────────────────────────────────── */
-    async function loadAll() {
-        const [daily, slots, timeline] = await Promise.all([
-            api('/api/analytics/daily'),
-            api('/api/analytics/timeslots'),
-            api('/api/analytics/timeline'),
-        ]);
-
-        updateCards(daily, slots);
-        renderDaily(daily);
-        renderSlots(slots);
-        renderTimeline(timeline);
-        renderPeakBreakdown(daily);
-        renderSlotPerf(slots);
+    /* ── Repair queue ────────────────────────────────────────────────────────── */
+    async function repairQueue() {
+        const btn = document.getElementById('repair-btn');
+        btn.disabled = true;
+        btn.textContent = '🔧 Repairing…';
+        const res = await api('/api/queue/repair', 'POST');
+        btn.disabled = false;
+        btn.textContent = '🔧 Repair Queue';
+        toast(res.msg, res.ok ? 'ok' : 'err');
     }
 
-    loadAll();
+    /* ── Full page load ──────────────────────────────────────────────────────── */
+    async function loadAll() {
+        // Always load full daily overview (all dates, no filter)
+        const allDaily = await api('/api/analytics/daily');
+        allDailyData = allDaily;
+        renderDaily(allDaily);
+        renderPeakBreakdown(allDaily);
+
+        // Load date-specific charts
+        await loadDayCharts();
+    }
+
+    /* ── Init ────────────────────────────────────────────────────────────────── */
+    (async () => {
+        await initDateSelector();
+        await loadAll();
+    })();
 </script>
 {% endblock %}
