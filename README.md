@@ -130,5 +130,3 @@ A full-stack intelligent queue management system for restaurants, built using **
 | Analytics | Custom aggregation + simulation |
 
 ---
-
-## 📁 Project Structure
