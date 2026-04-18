@@ -64,6 +64,9 @@
       <a href="/history" class="nav-item {% if request.path=='/history' %}active{% endif %}">
         <span class="nav-icon">◷</span><span>History</span>
       </a>
+      <a href="/analytics" class="nav-item {% if request.path=='/analytics' %}active{% endif %}">
+        <span class="nav-icon">📈</span><span>Analytics</span>
+      </a>
       {% if session.get('role') == 'admin' %}
       <a href="/logs" class="nav-item {% if request.path=='/logs' %}active{% endif %}">
         <span class="nav-icon">◎</span><span>Logs</span>
@@ -80,6 +83,11 @@
       <a href="/users" class="nav-item {% if request.path=='/users' %}active{% endif %}">
         <span class="nav-icon">👥</span><span>Staff</span>
       </a>
+      <!--
+      <a href="/simulation" class="nav-item {% if request.path=='/simulation' %}active{% endif %}">
+        <span class="nav-icon">⚡</span><span>Simulation</span>
+      </a>
+      -->
       {% endif %}
       <a href="/logout" class="nav-item" style="color:var(--txt3)" onmouseover="this.style.color='var(--red)'"
         onmouseout="this.style.color='var(--txt3)'">

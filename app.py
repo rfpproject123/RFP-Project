@@ -2,12 +2,15 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 from pymongo import MongoClient
 from bson import ObjectId
 from datetime import datetime
+import pytz
 import os
 import hashlib
 import secrets
 import string
 from functools import wraps
 from dotenv import load_dotenv
+
+IST = pytz.timezone("Asia/Kolkata")
 
 load_dotenv()
 
@@ -57,7 +60,7 @@ def s(doc):
     return doc
 
 def now():
-    return datetime.utcnow().isoformat()
+    return datetime.now(IST).isoformat()
 
 def log(action, detail=""):
     logs_col.insert_one({"branch_id": session.get("branch_id","system"),
@@ -489,6 +492,335 @@ def page_logs():       return render_template("logs.html")
 @admin_required
 def page_users():      return render_template("users.html")
 
+@app.route("/simulation")
+@admin_required
+def page_simulation(): return render_template("simulation.html")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MONTE CARLO SIMULATION API
+# ═══════════════════════════════════════════════════════════════════════════════
+@app.route("/api/simulation/run", methods=["POST"])
+@admin_required
+def api_run_simulation():
+    import random
+    import math
+
+    d               = request.json
+    branch          = bid()
+    num_simulations = int(d.get("num_simulations", 1000))
+    sim_hours       = float(d.get("sim_hours", 8))
+    cleaning_min    = 10.0  # fixed default cleaning time
+
+    # ── Compute arrival_rate from real order timestamps ───────────────────────
+    all_orders = list(orders_col.find(
+        {"branch_id": branch},
+        {"created": 1}
+    ).sort("created", 1))
+
+    arrival_rate = 1.0   # default fallback — 1 customer/hr
+    if len(all_orders) >= 2:
+        try:
+            t_first = datetime.fromisoformat(all_orders[0]["created"]).astimezone(IST)
+            t_last  = datetime.fromisoformat(all_orders[-1]["created"]).astimezone(IST)
+            total_hours = (t_last - t_first).total_seconds() / 3600
+            if total_hours >= 0.5:
+                arrival_rate = len(all_orders) / total_hours
+        except Exception:
+            pass
+
+    avg_dining_min = 45.0  # default
+    dining_std_min = 15.0  # default
+
+    # Pull real table config from DB for this branch
+    tables = list(tables_col.find({"branch_id": branch}, {"seats": 1, "number": 1}))
+    if not tables:
+        return jsonify({"ok": False, "msg": "No tables configured. Please run Setup first."}), 400
+
+    # Build seat category counts
+    seat_counts = {}
+    for t in tables:
+        s = t["seats"]
+        seat_counts[s] = seat_counts.get(s, 0) + 1
+    total_tables = len(tables)
+
+    # Pull real historical dining durations if available
+    paid_orders = list(orders_col.find(
+        {"branch_id": branch, "status": "paid", "paid_at": {"$ne": None}},
+        {"created": 1, "paid_at": 1, "seats": 1}
+    ).limit(200))
+
+    real_durations = []
+    for o in paid_orders:
+        try:
+            t1 = datetime.fromisoformat(o["created"]).astimezone(IST)
+            t2 = datetime.fromisoformat(o["paid_at"]).astimezone(IST)
+            mins = (t2 - t1).total_seconds() / 60
+            if 5 < mins < 300:
+                real_durations.append(mins)
+        except Exception:
+            pass
+
+    if len(real_durations) >= 10:
+        avg_dining_min = sum(real_durations) / len(real_durations)
+        variance = sum((x - avg_dining_min)**2 for x in real_durations) / len(real_durations)
+        dining_std_min = math.sqrt(variance)
+        data_source = "historical"
+    else:
+        data_source = "simulated"
+
+    # ── Monte Carlo core ──────────────────────────────────────────────────────
+    sim_minutes = sim_hours * 60
+    results = {
+        "wait_times":        [],
+        "queue_lengths":     [],
+        "throughput":        [],
+        "occupancy_rates":   [],
+        "customers_turned":  [],
+        "peak_queue_sizes":  [],
+    }
+
+    for _ in range(num_simulations):
+        # Each simulation: model one full operating day
+        table_free_at = [0.0] * total_tables   # minute when each table becomes free
+        current_time  = 0.0
+        wait_times_run    = []
+        queue_length_snapshots = []
+        served = 0
+        turned_away = 0
+        peak_queue = 0
+
+        # Generate all arrivals via Poisson process
+        arrivals = []
+        t = 0.0
+        lam = arrival_rate / 60.0  # per minute
+        while t < sim_minutes:
+            gap = random.expovariate(lam)
+            t  += gap
+            if t < sim_minutes:
+                # Random party size weighted realistically
+                party = random.choices(
+                    [2, 4, 6, 8, 10],
+                    weights=[30, 35, 20, 10, 5]
+                )[0]
+                arrivals.append((t, party))
+
+        for arrival_time, party_size in arrivals:
+            # Find best available table (exact size, then next bigger)
+            best_table = None
+            best_free_at = float("inf")
+            for idx, free_at in enumerate(table_free_at):
+                table_seats = tables[idx]["seats"]
+                if table_seats >= party_size:
+                    if free_at <= arrival_time:
+                        # Table already free — no wait
+                        if best_table is None or table_seats < tables[best_table]["seats"]:
+                            best_table = idx
+                            best_free_at = free_at
+                    else:
+                        # Table busy — shortest wait
+                        if free_at < best_free_at and table_seats >= party_size:
+                            best_table = idx
+                            best_free_at = free_at
+
+            if best_table is None:
+                turned_away += 1
+                continue
+
+            wait = max(0.0, table_free_at[best_table] - arrival_time)
+            wait_times_run.append(wait)
+
+            # Dining duration — normal distribution clipped to [10, 180] min
+            dining = max(10, min(180, random.gauss(avg_dining_min, dining_std_min)))
+            cleaning = max(5, random.gauss(cleaning_min, 3))
+
+            table_free_at[best_table] = arrival_time + wait + dining + cleaning
+            served += 1
+
+            # Queue snapshot — count tables still occupied at this arrival time
+            busy = sum(1 for f in table_free_at if f > arrival_time)
+            queue_length_snapshots.append(busy)
+            if busy > peak_queue:
+                peak_queue = busy
+
+        total_arrivals = len(arrivals)
+        results["wait_times"].append(
+            sum(wait_times_run) / len(wait_times_run) if wait_times_run else 0
+        )
+        results["queue_lengths"].append(
+            sum(queue_length_snapshots) / len(queue_length_snapshots) if queue_length_snapshots else 0
+        )
+        results["throughput"].append(served)
+        results["occupancy_rates"].append(
+            (served / total_arrivals * 100) if total_arrivals > 0 else 0
+        )
+        results["customers_turned"].append(turned_away)
+        results["peak_queue_sizes"].append(peak_queue)
+
+    def stats(arr):
+        if not arr: return {}
+        arr_s = sorted(arr)
+        n = len(arr_s)
+        mean = sum(arr_s) / n
+        variance = sum((x - mean)**2 for x in arr_s) / n
+        return {
+            "mean":   round(mean, 2),
+            "min":    round(arr_s[0], 2),
+            "max":    round(arr_s[-1], 2),
+            "std":    round(math.sqrt(variance), 2),
+            "p25":    round(arr_s[int(n * 0.25)], 2),
+            "p50":    round(arr_s[int(n * 0.50)], 2),
+            "p75":    round(arr_s[int(n * 0.75)], 2),
+            "p95":    round(arr_s[int(n * 0.95)], 2),
+            "histogram": _histogram(arr_s, 10),
+        }
+
+    def _histogram(arr, bins):
+        if not arr: return []
+        lo, hi = arr[0], arr[-1]
+        if lo == hi: return [{"label": str(round(lo, 1)), "count": len(arr)}]
+        width = (hi - lo) / bins
+        buckets = [0] * bins
+        for v in arr:
+            idx = min(int((v - lo) / width), bins - 1)
+            buckets[idx] += 1
+        return [{"label": round(lo + i * width, 1), "count": buckets[i]} for i in range(bins)]
+
+    # Table recommendation
+    avg_turned = stats(results["customers_turned"])["mean"]
+    recommendation = ""
+    if avg_turned > len(arrivals) * 0.15:
+        recommendation = f"⚠️ On average {avg_turned:.0f} customers per day cannot be seated. Consider adding more tables."
+    elif stats(results["wait_times"])["p95"] > 20:
+        recommendation = f"⏳ 95th percentile wait time is {stats(results['wait_times'])['p95']:.1f} min. Peak hours may need extra staff or faster cleaning."
+    else:
+        recommendation = f"✅ Your current table configuration handles demand well. Average wait: {stats(results['wait_times'])['mean']:.1f} min."
+
+    return jsonify({
+        "ok": True,
+        "num_simulations": num_simulations,
+        "sim_hours":        sim_hours,
+        "arrival_rate":     arrival_rate,
+        "avg_dining_min":   round(avg_dining_min, 1),
+        "dining_std_min":   round(dining_std_min, 1),
+        "data_source":      data_source,
+        "total_tables":     total_tables,
+        "seat_breakdown":   seat_counts,
+        "historical_orders": len(real_durations),
+        "stats": {
+            "wait_time":       stats(results["wait_times"]),
+            "queue_length":    stats(results["queue_lengths"]),
+            "throughput":      stats(results["throughput"]),
+            "occupancy":       stats(results["occupancy_rates"]),
+            "turned_away":     stats(results["customers_turned"]),
+            "peak_queue":      stats(results["peak_queue_sizes"]),
+        },
+        "recommendation": recommendation,
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ANALYTICS ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+def _get_slot(hour):
+    if 6  <= hour < 11: return "morning"
+    if 11 <= hour < 15: return "lunch"
+    if 15 <= hour < 18: return "evening"
+    if 18 <= hour < 23: return "dinner"
+    return None
+
+@app.route("/api/analytics/daily")
+@login_required
+def api_analytics_daily():
+    branch = bid()
+    orders = list(orders_col.find({"branch_id": branch}, {"created": 1}).sort("created", 1))
+
+    # Group by date
+    day_map = {}  # date_str -> {total, slots: {morning:0,lunch:0,evening:0,dinner:0}}
+    for o in orders:
+        try:
+            dt = datetime.fromisoformat(o["created"]).astimezone(IST)
+        except Exception:
+            continue
+        date_str = dt.strftime("%Y-%m-%d")
+        hour     = dt.hour
+        slot     = _get_slot(hour)
+        if date_str not in day_map:
+            day_map[date_str] = {"total": 0, "slots": {"morning": 0, "lunch": 0, "evening": 0, "dinner": 0}}
+        day_map[date_str]["total"] += 1
+        if slot:
+            day_map[date_str]["slots"][slot] += 1
+
+    result = []
+    for date_str in sorted(day_map.keys()):
+        d    = day_map[date_str]
+        peak = max(d["slots"], key=lambda k: d["slots"][k])
+        result.append({
+            "date":      date_str,
+            "customers": d["total"],
+            "peak":      peak,
+            "slots":     d["slots"],
+        })
+    return jsonify(result)
+
+
+@app.route("/api/analytics/timeslots")
+@login_required
+def api_analytics_timeslots():
+    branch = bid()
+    orders = list(orders_col.find({"branch_id": branch}, {"created": 1, "seats": 1}))
+
+    slots = {
+        "morning": {"customers": 0, "total_seats": 0},
+        "lunch":   {"customers": 0, "total_seats": 0},
+        "evening": {"customers": 0, "total_seats": 0},
+        "dinner":  {"customers": 0, "total_seats": 0},
+    }
+    for o in orders:
+        try:
+            dt   = datetime.fromisoformat(o["created"]).astimezone(IST)
+            slot = _get_slot(dt.hour)
+            if not slot:
+                continue
+            slots[slot]["customers"]   += 1
+            slots[slot]["total_seats"] += int(o.get("seats", 0))
+        except Exception:
+            continue
+
+    result = {}
+    for slot, data in slots.items():
+        c = data["customers"]
+        result[slot] = {
+            "customers":   c,
+            "avg_seats":   round(data["total_seats"] / c, 1) if c > 0 else 0,
+        }
+    return jsonify(result)
+
+
+@app.route("/api/analytics/timeline")
+@login_required
+def api_analytics_timeline():
+    branch = bid()
+    orders = list(orders_col.find({"branch_id": branch}, {"created": 1}).sort("created", 1))
+    bucket_map = {}
+    for o in orders:
+        try:
+            dt = datetime.fromisoformat(o["created"]).astimezone(IST)
+        except Exception:
+            continue
+        # Round down to nearest 30-min bucket
+        bucket_min = (dt.minute // 30) * 30
+        bucket_key = dt.strftime(f"%H:{bucket_min:02d}")
+        bucket_map[bucket_key] = bucket_map.get(bucket_key, 0) + 1
+    result = [{"time": k, "customers": v}
+              for k, v in sorted(bucket_map.items())]
+    return jsonify(result)
+
+
+@app.route("/analytics")
+@login_required
+def page_analytics(): return render_template("analytics.html")
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ERROR HANDLERS
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -534,6 +866,7 @@ if __name__ == "__main__":
     col_count = len(db.list_collection_names())
     print(f"  ✅  Database ready          {db_name}  ({col_count} collections)")
     print(f"  ✅  Auth                    session-based, SHA-256 passwords")
+    print(f"  ✅  Timezone                 Asia/Kolkata (IST)")
     print(f"  ✅  Multi-tenant            branch_id isolation enabled")
     print("─" * 48)
     print("  🌐  Running at  →  http://localhost:5000")

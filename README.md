@@ -340,3 +340,4 @@ Database name: `cafequeue_db`
 - Re-running Setup resets **all data** — tables, orders, queues, and logs
 - No login/authentication — designed as a staff-facing internal tool
 - Works on any modern browser (Chrome, Firefox, Edge, Safari)
+
