@@ -10,19 +10,529 @@
     href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+  <style>
+    /* ── Enhanced sidebar ──────────────────────────────────────────── */
+    .sidebar {
+      background: linear-gradient(180deg, #0D0F14 0%, #0A0C10 100%);
+      border-right: 1px solid rgba(255, 255, 255, .055);
+    }
+
+    .sidebar-brand {
+      padding: 22px 18px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, .045);
+    }
+
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      background: linear-gradient(135deg, #FF6B35, #E55A25);
+      box-shadow: 0 4px 14px rgba(255, 107, 53, .28);
+    }
+
+    .brand-name {
+      font-size: 15.5px;
+      font-weight: 800;
+      letter-spacing: -.01em
+    }
+
+    .brand-sub {
+      font-size: 9.5px;
+      letter-spacing: .04em;
+      opacity: .5
+    }
+
+    /* Branch ID pill */
+    .branch-pill {
+      margin: 10px 12px 2px;
+      padding: 7px 11px;
+      background: rgba(255, 107, 53, .06);
+      border: 1px solid rgba(255, 107, 53, .12);
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .branch-pill-label {
+      font-size: 9.5px;
+      color: rgba(139, 143, 168, .6);
+      letter-spacing: .07em;
+      text-transform: uppercase
+    }
+
+    .branch-pill-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: rgba(255, 107, 53, .85)
+    }
+
+    /* Section labels */
+    .sidebar-section-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .13em;
+      padding: 16px 18px 5px;
+      color: rgba(82, 86, 106, .8);
+      text-transform: uppercase;
+    }
+
+    /* Nav items */
+    .sidebar-nav {
+      padding: 0 9px;
+      gap: 1px
+    }
+
+    .nav-item {
+      padding: 9px 11px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(139, 143, 168, .75);
+      gap: 10px;
+      transition: .18s ease;
+    }
+
+    .nav-item:hover {
+      background: rgba(255, 255, 255, .05);
+      color: #E8EAF0;
+      transform: translateX(2px);
+    }
+
+    .nav-item.active {
+      background: linear-gradient(135deg, rgba(255, 107, 53, .16), rgba(255, 107, 53, .08));
+      color: #FF6B35;
+      border: 1px solid rgba(255, 107, 53, .14);
+      font-weight: 600;
+    }
+
+    .nav-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .nav-item.active .nav-icon {
+      background: rgba(255, 107, 53, .15);
+    }
+
+    /* Logout special style */
+    .nav-item.nav-logout {
+      color: rgba(247, 85, 85, .6)
+    }
+
+    .nav-item.nav-logout:hover {
+      background: rgba(247, 85, 85, .08);
+      color: #F75555;
+      transform: translateX(2px)
+    }
+
+    /* Sidebar footer */
+    .sidebar-footer {
+      padding: 12px 10px;
+      border-top: 1px solid rgba(255, 255, 255, .045)
+    }
+
+    .live-pill {
+      background: rgba(61, 214, 140, .06);
+      border: 1px solid rgba(61, 214, 140, .12);
+      border-radius: 20px;
+      padding: 6px 12px;
+      font-size: 10.5px;
+      color: rgba(61, 214, 140, .75);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* User card at bottom of sidebar */
+    .sidebar-user {
+      margin-top: 9px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, .03);
+      border: 1px solid rgba(255, 255, 255, .055);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: .18s ease;
+    }
+
+    .sidebar-user:hover {
+      background: rgba(255, 255, 255, .055);
+      border-color: rgba(255, 255, 255, .09)
+    }
+
+    .user-avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(255, 107, 53, .2), rgba(255, 107, 53, .08));
+      border: 1.5px solid rgba(255, 107, 53, .25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      color: #FF6B35;
+      flex-shrink: 0;
+    }
+
+    .user-name {
+      font-size: 12.5px;
+      font-weight: 500;
+      color: #E8EAF0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    .user-role {
+      font-size: 10px;
+      margin-top: 1px
+    }
+
+    /* ── Enhanced topbar ───────────────────────────────────────────── */
+    .topbar {
+      height: 64px;
+      background: rgba(10, 11, 14, .8);
+      border-bottom: 1px solid rgba(255, 255, 255, .05);
+      backdrop-filter: blur(12px);
+      padding: 0 28px;
+    }
+
+    .topbar-left {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px
+    }
+
+    .topbar-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 17px;
+      font-weight: 800;
+      color: #E8EAF0;
+      letter-spacing: -.01em;
+    }
+
+    .topbar-sub {
+      font-size: 11.5px;
+      color: rgba(139, 143, 168, .6)
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 14px
+    }
+
+    .topbar-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: rgba(139, 143, 168, .65);
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, .04);
+      border: 1px solid rgba(255, 255, 255, .06);
+      border-radius: 8px;
+      letter-spacing: .03em;
+    }
+
+    .topbar-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(61, 214, 140, .06);
+      border: 1px solid rgba(61, 214, 140, .12);
+      border-radius: 8px;
+      font-size: 11.5px;
+      color: rgba(61, 214, 140, .8);
+      font-weight: 500;
+    }
+
+    .topbar-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(255, 107, 53, .22), rgba(255, 107, 53, .08));
+      border: 1.5px solid rgba(255, 107, 53, .22);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: #FF6B35;
+      cursor: pointer;
+      transition: .18s ease;
+      text-decoration: none;
+    }
+
+    .topbar-avatar:hover {
+      border-color: rgba(255, 107, 53, .45);
+      background: rgba(255, 107, 53, .18);
+    }
+
+    /* ── Enhanced stat cards ───────────────────────────────────────── */
+    .stat-card {
+      background: rgba(17, 19, 24, .9);
+      border: 1px solid rgba(255, 255, 255, .06);
+      border-radius: 14px;
+      padding: 20px;
+      transition: .2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .06), transparent);
+      opacity: 0;
+      transition: .2s ease;
+    }
+
+    .stat-card:hover {
+      border-color: rgba(255, 255, 255, .1);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, .3);
+    }
+
+    .stat-card:hover::before {
+      opacity: 1
+    }
+
+    .stat-icon {
+      font-size: 20px;
+      margin-bottom: 12px;
+      display: block
+    }
+
+    .stat-val {
+      font-family: 'Syne', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 10.5px;
+      color: rgba(139, 143, 168, .7);
+      margin-top: 7px;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      font-weight: 600;
+    }
+
+    .stat-sub {
+      font-size: 11px;
+      color: rgba(139, 143, 168, .5);
+      margin-top: 3px
+    }
+
+    /* ── Enhanced cards ────────────────────────────────────────────── */
+    .card {
+      background: rgba(14, 16, 21, .85);
+      border: 1px solid rgba(255, 255, 255, .055);
+      border-radius: 14px;
+      padding: 22px;
+      transition: .18s ease;
+    }
+
+    .card:hover {
+      border-color: rgba(255, 255, 255, .09)
+    }
+
+    .card-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: rgba(82, 86, 106, .85);
+      margin-bottom: 16px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .card-header .card-title {
+      margin: 0
+    }
+
+    /* ── Enhanced table tiles ──────────────────────────────────────── */
+    .table-tile {
+      border-radius: 12px;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      text-align: center;
+      border: 1px solid transparent;
+      transition: .2s ease;
+      cursor: default;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .table-tile::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      opacity: 0;
+      transition: .2s ease;
+    }
+
+    .table-tile:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, .25)
+    }
+
+    .table-tile:hover::after {
+      opacity: 1
+    }
+
+    .table-tile.ready {
+      background: rgba(61, 214, 140, .06);
+      border-color: rgba(61, 214, 140, .15);
+    }
+
+    .table-tile.ready::after {
+      background: rgba(61, 214, 140, .04)
+    }
+
+    .table-tile.ready .tile-num {
+      color: #3DD68C
+    }
+
+    .table-tile.occupied {
+      background: rgba(247, 85, 85, .06);
+      border-color: rgba(247, 85, 85, .14);
+    }
+
+    .table-tile.occupied::after {
+      background: rgba(247, 85, 85, .04)
+    }
+
+    .table-tile.occupied .tile-num {
+      color: #F75555
+    }
+
+    .table-tile.cleaning {
+      background: rgba(245, 166, 35, .06);
+      border-color: rgba(245, 166, 35, .14);
+    }
+
+    .table-tile.cleaning::after {
+      background: rgba(245, 166, 35, .04)
+    }
+
+    .table-tile.cleaning .tile-num {
+      color: #F5A623
+    }
+
+    .tile-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 800
+    }
+
+    .tile-seats {
+      font-size: 11px;
+      color: rgba(139, 143, 168, .6)
+    }
+
+    /* ── Enhanced buttons ──────────────────────────────────────────── */
+    .btn {
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: .18s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px)
+    }
+
+    .btn:active {
+      transform: translateY(0) scale(.98)
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #FF6B35, #E55A25);
+      border-color: transparent;
+      box-shadow: 0 4px 14px rgba(255, 107, 53, .25);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 18px rgba(255, 107, 53, .36);
+      background: linear-gradient(135deg, #FF7A45, #F06030);
+    }
+
+    /* ── Data table ────────────────────────────────────────────────── */
+    .data-table th {
+      background: rgba(255, 255, 255, .025);
+      border-bottom: 1px solid rgba(255, 255, 255, .06);
+    }
+
+    .data-table tr:hover td {
+      background: rgba(255, 255, 255, .025)
+    }
+
+    /* ── Form inputs ───────────────────────────────────────────────── */
+    .form-input,
+    .form-select {
+      background: rgba(27, 30, 38, .7);
+      border-color: rgba(255, 255, 255, .07);
+      border-radius: 9px;
+    }
+
+    .form-input:focus,
+    .form-select:focus {
+      border-color: rgba(255, 107, 53, .45);
+      box-shadow: 0 0 0 3px rgba(255, 107, 53, .09);
+    }
+
+    /* ── Page content spacing ──────────────────────────────────────── */
+    .page-content {
+      padding: 26px 28px
+    }
+
+    .main-wrap {
+      background: #080A0D
+    }
+  </style>
 </head>
 
 <body>
 
   <aside class="sidebar">
+
+    <!-- Brand -->
     <div class="sidebar-brand">
-      <div class="brand-logo">
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-          <rect width="28" height="28" rx="8" fill="#FF6B35" />
-          <path d="M8 18c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="white" stroke-width="2" stroke-linecap="round" />
-          <path d="M14 12V8M11 10l3-4 3 4" stroke="white" stroke-width="2" stroke-linecap="round"
+      <div class="brand-logo" style="display:flex;align-items:center;justify-content:center">
+        <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+          <path d="M8 18c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="white" stroke-width="2.2" stroke-linecap="round" />
+          <path d="M14 12V8M11 10l3-4 3 4" stroke="white" stroke-width="2.2" stroke-linecap="round"
             stroke-linejoin="round" />
-          <path d="M20 18h2a1 1 0 000-2h-2" stroke="white" stroke-width="1.5" stroke-linecap="round" />
+          <path d="M20 18h2a1 1 0 000-2h-2" stroke="white" stroke-width="1.8" stroke-linecap="round" />
         </svg>
       </div>
       <div>
@@ -31,19 +541,16 @@
       </div>
     </div>
 
-    <!-- Branch ID pill (always visible) -->
+    <!-- Branch ID -->
     {% if session.get('branch_id') %}
-    <div style="margin:0 12px 4px;padding:7px 10px;background:rgba(255,107,53,.06);
-    border:1px solid rgba(255,107,53,.15);border-radius:var(--r);
-    display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:10.5px;color:var(--txt3);text-transform:uppercase;letter-spacing:.06em">Branch</span>
-      <span style="font-family:var(--fontMono);font-size:12px;font-weight:600;color:var(--orange)">
-        {{ session.get('branch_id') }}
-      </span>
+    <div class="branch-pill">
+      <span class="branch-pill-label">Branch</span>
+      <span class="branch-pill-value">{{ session.get('branch_id') }}</span>
     </div>
     {% endif %}
 
-    <div class="sidebar-section-label">MAIN</div>
+    <!-- MAIN nav -->
+    <div class="sidebar-section-label">Main</div>
     <nav class="sidebar-nav">
       <a href="/" class="nav-item {% if request.path=='/' %}active{% endif %}">
         <span class="nav-icon">⊞</span><span>Dashboard</span>
@@ -56,7 +563,8 @@
       </a>
     </nav>
 
-    <div class="sidebar-section-label">MONITOR</div>
+    <!-- MONITOR nav -->
+    <div class="sidebar-section-label">Monitor</div>
     <nav class="sidebar-nav">
       <a href="/queues" class="nav-item {% if request.path=='/queues' %}active{% endif %}">
         <span class="nav-icon">≡</span><span>Queues</span>
@@ -74,7 +582,8 @@
       {% endif %}
     </nav>
 
-    <div class="sidebar-section-label">SYSTEM</div>
+    <!-- SYSTEM nav -->
+    <div class="sidebar-section-label">System</div>
     <nav class="sidebar-nav">
       {% if session.get('role') == 'admin' %}
       <a href="/setup" class="nav-item {% if request.path=='/setup' %}active{% endif %}">
@@ -83,59 +592,49 @@
       <a href="/users" class="nav-item {% if request.path=='/users' %}active{% endif %}">
         <span class="nav-icon">👥</span><span>Staff</span>
       </a>
-      <!--
       <a href="/simulation" class="nav-item {% if request.path=='/simulation' %}active{% endif %}">
         <span class="nav-icon">⚡</span><span>Simulation</span>
       </a>
-      -->
       {% endif %}
-      <a href="/profile" class="nav-item {% if request.path=='/profile' %}active{% endif %}" style="color:var(--txt2)">
+      <a href="/profile" class="nav-item {% if request.path=='/profile' %}active{% endif %}">
         <span class="nav-icon">👤</span><span>Profile</span>
       </a>
-      <a href="/logout" class="nav-item" style="color:var(--txt3)" onmouseover="this.style.color='var(--red)'"
-        onmouseout="this.style.color='var(--txt3)'">
+      <a href="/logout" class="nav-item nav-logout">
         <span class="nav-icon">⏻</span><span>Sign Out</span>
       </a>
     </nav>
 
-    <!-- Live stats + user -->
+    <!-- Footer -->
     <div class="sidebar-footer">
       <div class="live-pill">
         <span class="live-dot"></span>
-        <span id="sb-ready">—</span> ready &nbsp;·&nbsp;
-        <span id="sb-occ">—</span> occupied
+        <span id="sb-ready">—</span>&nbsp;ready&nbsp;·&nbsp;<span id="sb-occ">—</span>&nbsp;occupied
       </div>
-
       {% if session.get('username') %}
-      <div style="margin-top:10px;padding:10px 12px;background:var(--bg2);
-      border:1px solid var(--border);border-radius:var(--r);
-      display:flex;align-items:center;gap:10px">
-        <div style="width:30px;height:30px;border-radius:50%;
-        background:var(--orangeGlow);border:1px solid rgba(255,107,53,.3);
-        display:flex;align-items:center;justify-content:center;
-        font-family:var(--fontHead);font-size:13px;font-weight:700;
-        color:var(--orange);flex-shrink:0">
+      <div class="sidebar-user">
+        <div class="user-avatar">
           {{ session.get('full_name', session.get('username', 'U'))[0].upper() }}
         </div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:12.5px;font-weight:500;color:var(--txt);
-          white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-            {{ session.get('full_name', session.get('username')) }}
-          </div>
-          <div style="font-size:10.5px;color:var(--txt3)">
+          <div class="user-name">{{ session.get('full_name', session.get('username')) }}</div>
+          <div class="user-role">
             {% if session.get('role') == 'admin' %}
-            <span style="color:var(--orange)">● Admin</span>
+            <span style="color:rgba(255,107,53,.75)">● Admin</span>
             {% else %}
-            <span style="color:var(--teal)">● Staff</span>
+            <span style="color:rgba(56,189,248,.75)">● Staff</span>
             {% endif %}
           </div>
         </div>
       </div>
       {% endif %}
     </div>
+
   </aside>
 
+  <!-- Main area -->
   <div class="main-wrap">
+
+    <!-- Topbar -->
     <header class="topbar">
       <div class="topbar-left">
         <h1 class="topbar-title">{% block page_title %}{% endblock %}</h1>
@@ -144,14 +643,22 @@
       <div class="topbar-right">
         <div class="topbar-time" id="topbar-time"></div>
         <div class="topbar-status">
-          <span class="status-dot"></span> Live
+          <span class="status-dot"></span>Live
         </div>
+        {% if session.get('username') %}
+        <a href="/profile" class="topbar-avatar"
+          title="{{ session.get('full_name', session.get('username')) }} — Profile">
+          {{ session.get('full_name', session.get('username', 'U'))[0].upper() }}
+        </a>
+        {% endif %}
       </div>
     </header>
 
+    <!-- Page content -->
     <main class="page-content">
       {% block content %}{% endblock %}
     </main>
+
   </div>
 
   <div id="toasts"></div>
