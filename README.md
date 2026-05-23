@@ -8,7 +8,14 @@
   <img src="https://img.shields.io/badge/MongoDB-Database-47A248?logo=mongodb&logoColor=white"/>
   <img src="https://img.shields.io/badge/Status-Active_Development-success"/>
 </p>
+## 📑 Table of Contents
 
+- [📸 Preview](#-preview)
+- [🚀 Key Features](#-key-features)
+- [📊 Analytics & Insights](#-analytics--insights-new)
+- [🎲 Monte Carlo Simulation](#-monte-carlo-simulation-new)
+- [⚙️ Queue Algorithms](#️-queue-algorithms)
+- [🛠 Tech Stack](#-tech-stack)
 ## 🚀 Key Features
 
 ### 🧠 Core System
