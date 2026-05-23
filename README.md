@@ -34,13 +34,29 @@ Real-time queue management, smart table allocation, analytics, and Monte Carlo s
 
 ## 🔥 Premium Login Experience
 
-<img width="100%" alt="CafeQueue Login" src="./Login.jpeg">
+<p align="center">
+  <img src="./Login.png" width="95%">
+</p>
 
 ---
 
 ## 📊 Live Operations Dashboard
 
-<img width="100%" alt="CafeQueue Dashboard" src="./Dashboard.png">
+<p align="center">
+  <img src="./Cafe Dashboard.png" width="95%">
+</p>
+
+---
+
+# ⚡ Platform Preview
+
+<p align="center">
+  <img src="./Cafe Analytics.png" width="95%">
+</p>
+
+<p align="center">
+  <i>Real-time queue intelligence, analytics and simulation engineered for modern cafés.</i>
+</p>
 
 ---
 ## 📑 Table of Contents
