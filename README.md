@@ -1,13 +1,35 @@
+<div align="center">
+
 # ☕ CaféQueue
 
-> Smart restaurant queue, analytics and table management platform built with Flask and MongoDB.
+### Intelligent Restaurant Queue & Analytics Platform
 
-<p align="left">
-  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white"/>
-  <img src="https://img.shields.io/badge/Flask-Backend-black?logo=flask"/>
-  <img src="https://img.shields.io/badge/MongoDB-Database-47A248?logo=mongodb&logoColor=white"/>
-  <img src="https://img.shields.io/badge/Status-Active_Development-success"/>
+Real-time queue management, smart table allocation, analytics, and Monte Carlo simulation — engineered for modern cafés and restaurants.
+
+<br>
+
+<p>
+  <a href="https://cafequeue.onrender.com">
+    <img src="https://img.shields.io/badge/Live-Demo-ff6b35?style=for-the-badge&logo=render&logoColor=white"/>
+  </a>
+  <img src="https://img.shields.io/badge/Flask-Backend-black?style=for-the-badge&logo=flask"/>
+  <img src="https://img.shields.io/badge/MongoDB-Database-green?style=for-the-badge&logo=mongodb"/>
+  <img src="https://img.shields.io/badge/Monte-Carlo-Simulation-blue?style=for-the-badge"/>
 </p>
+
+</div>
+
+---
+
+## ⚡ Platform Highlights
+
+🧠 Smart Table Allocation  
+📊 Real-Time Analytics  
+🎲 Monte Carlo Simulation  
+⚡ Live Queue Management  
+🔐 Role-Based Authentication  
+
+---
 ## 📑 Table of Contents
 
 - [📸 Preview](#-preview)
