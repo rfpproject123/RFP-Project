@@ -30,6 +30,19 @@ Real-time queue management, smart table allocation, analytics, and Monte Carlo s
 🔐 Role-Based Authentication  
 
 ---
+# ✨ Product Showcase
+
+## 🔥 Premium Login Experience
+
+<img width="100%" alt="CafeQueue Login" src="./Login.jpeg">
+
+---
+
+## 📊 Live Operations Dashboard
+
+<img width="100%" alt="CafeQueue Dashboard" src="./Dashboard.png">
+
+---
 ## 📑 Table of Contents
 
 - [📸 Preview](#-preview)
@@ -40,66 +53,73 @@ Real-time queue management, smart table allocation, analytics, and Monte Carlo s
 - [🛠 Tech Stack](#-tech-stack)
 ## 🚀 Key Features
 
-### 🧠 Core System
-- Multi-queue architecture:
-  - Ready Queue (FIFO per seat category)
-  - Cleaning Queue (FIFO)
-  - Priority Queue (VIP + size-based)
-- Smart table allocation (exact match → next best fit)
-- VIP priority handling
-- Automated cleaning → reallocation workflow
+# 🚀 Core System & Intelligence
+
+## 🧠 Queue Intelligence Engine
+
+<table>
+<tr>
+<td width="50%">
+
+### Queue Inspector
+Multi-queue architecture with:
+
+✔ Ready Queue (FIFO)  
+✔ Cleaning Queue  
+✔ Priority Queue (VIP + size-based)
+
+<img src="./Queues.png" width="100%">
+
+</td>
+
+<td width="50%">
+
+### Smart Restaurant Setup
+Configure seating layouts and initialize operations with live preview.
+
+<img src="./Restaurant setup.png" width="100%">
+
+</td>
+</tr>
+</table>
 
 ---
 
-### 📊 Analytics & Insights (NEW)
-- Daily customer trends (date-wise)
-- Time-slot distribution (morning, afternoon, evening, night)
-- 30-minute interval timeline (continuous traffic curve)
-- Peak hour detection
-- Real operational data analysis (not static)
+## 📈 Real-Time Analytics
+
+Advanced operational intelligence powered by real restaurant data.
+
+<table>
+<tr>
+<td width="50%">
+
+### Daily Analytics
+Customer trends, peak-hour detection and traffic curves.
+
+<img src="./Daily Analytics.png" width="100%">
+
+</td>
+
+<td width="50%">
+
+### Analytics Dashboard
+Date-wise operational insights and business intelligence.
+
+<img src="./Cafe Analytics.png" width="100%">
+
+</td>
+</tr>
+</table>
 
 ---
 
-### 🎲 Monte Carlo Simulation (NEW)
-- Predict wait times and throughput
-- Uses **real historical data** (not manual input)
-- Computes:
-  - Average wait time
-  - P95 wait time
-  - Throughput
-  - Occupancy rate
-- Provides intelligent recommendations
+## 🎲 Monte Carlo Simulation
+
+Predict restaurant performance using historical operational patterns.
+
+<img src="./Monte Carlo.png" width="100%">
 
 ---
-
-### 🔐 Authentication System (NEW)
-- Login / Register system
-- Admin & Staff roles
-- Secure password hashing (salted SHA-256)
-
----
-
-### 👤 Profile Management (NEW)
-- Users can update:
-  - Full name
-  - Username
-  - Password
-- Session updates dynamically
-- Secure validation & uniqueness checks
-
----
-
-### ⚡ Real-Time Dashboard (NEW)
-- Auto-refresh every 5 seconds
-- Live stats:
-  - Ready tables
-  - Occupied tables
-  - Cleaning tables
-  - Waiting customers
-- No manual refresh needed
-
----
-
 ### 🎨 UI/UX Enhancements
 - Premium dark theme
 - Glassmorphism cards
@@ -127,40 +147,121 @@ Real-time queue management, smart table allocation, analytics, and Monte Carlo s
 
 ---
 
-## ⚙️ Queue Algorithms
+# 🧠 Queue Architecture
 
-### 1. Ready Queue
-- FIFO per seat size
-- Tables added after cleaning or setup
-- Dequeued on allocation
+CaféQueue uses a multi-queue architecture designed for intelligent restaurant operations and efficient customer handling.
 
----
+<table>
+<tr>
+<td width="33%">
 
-### 2. Cleaning Queue
+## Ready Queue
+
+FIFO queue organized by seat category.
+
+- Exact seating match
+- Fast allocation
+- Auto refill after cleaning
+
+</td>
+
+<td width="33%">
+
+## Cleaning Queue
+
+Dedicated FIFO cleaning workflow.
+
 - Triggered after payment
-- FIFO structure
-- After cleaning:
-  - Allocates to waiting customer OR
-  - Moves to ready queue
+- Cleaning lifecycle tracking
+- Auto transition to ready state
+
+</td>
+
+<td width="33%">
+
+## Priority Queue
+
+Priority-based allocation engine.
+
+- VIP customers
+- Large groups prioritized
+- FIFO inside same priority
+
+</td>
+</tr>
+</table>
 
 ---
 
-### 3. Priority Queue
-- Sorted by:
-  1. VIP
-  2. Larger groups first
-  3. FIFO within same priority
+# ⚙️ Smart Allocation Logic
+
+CaféQueue follows a layered allocation strategy:
+
+```text
+Customer Arrival
+        ↓
+Priority Evaluation
+        ↓
+Exact Table Match
+        ↓
+Next Best Fit Allocation
+        ↓
+Queue Placement
+        ↓
+Dining → Cleaning → Ready Queue
+```
+
+This workflow minimizes wait times and improves operational efficiency.
 
 ---
+---
 
-## 🛠 Tech Stack
+# 🛠 Tech Stack
 
 | Layer | Technology |
 |---|---|
 | Backend | Flask (Python 3.10+) |
-| Database | MongoDB (PyMongo) |
-| Frontend | HTML, CSS, Vanilla JS |
-| Auth | Session-based + hashed passwords |
-| Analytics | Custom aggregation + simulation |
+| Database | MongoDB + PyMongo |
+| Frontend | HTML5, CSS3, Vanilla JS |
+| Authentication | Session-based + SHA-256 hashing |
+| Analytics | Custom aggregation + Monte Carlo simulation |
+
+---
+
+# 🚀 Run Locally
+
+Clone the project:
+
+```bash
+git clone <repo-url>
+cd CafeQueue
+pip install -r requirements.txt
+```
+
+Configure environment variables:
+
+```env
+MONGO_URI=your_mongodb_uri
+SECRET_KEY=your_secret_key
+FLASK_ENV=development
+```
+
+Run:
+
+```bash
+python app.py
+```
+
+Open:
+
+```text
+http://localhost:5000
+```
+
+---
+
+# ☕ Final Note
+
+Built with Flask, MongoDB and systems-thinking for smarter restaurant operations.
 
 ---
