@@ -29,33 +29,103 @@ Real-time queue management, smart table allocation, live analytics, and Monte Ca
 ---
 <div align="center">
 
-# ☕ CaféQueue
+# ✨ Product Showcase
 
-### Intelligent Restaurant Queue & Analytics Platform
+## 🔥 Premium Login Experience
+<p align="center">
+  <img src="./Login.png" width="95%">
+</p>
 
-Real-time queue management, smart table allocation, live analytics, and Monte Carlo simulation — engineered for modern cafés and restaurants.
-
-<br>
-
-![Live](https://img.shields.io/badge/Live-Demo-FF6B35?style=for-the-badge)
-![Flask](https://img.shields.io/badge/Flask-Backend-000000?style=for-the-badge&logo=flask&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-Database-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
-![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
-
-<br>
-
-<img src="./Cafe Dashboard.png" width="95%">
-
-<br>
-
-*Real-time restaurant operations powered by queue intelligence, analytics and simulation.*
-
-</div>
+<p align="center">
+<i>Elegant authentication portal with futuristic typography and premium dark aesthetics.</i>
+</p>
 
 ---
 
-## ⚡ Platform Highlights
-## 📑 Table of Contents
+## 📊 Live Operations Dashboard
+<p align="center">
+  <img src="./Cafe Dashboard.png" width="95%">
+</p>
+
+<p align="center">
+<i>Monitor restaurant activity, live tables, orders and operational flow in real time.</i>
+</p>
+
+---
+
+## 🧠 Queue Intelligence Engine
+
+<table>
+<tr>
+<td width="50%">
+
+### Queue Inspector
+
+Multi-queue architecture featuring:
+
+✔ Ready Queue (FIFO)  
+✔ Cleaning Queue  
+✔ VIP Priority Queue  
+✔ Smart Allocation Logic  
+
+<img src="./Queues.png">
+
+</td>
+
+<td width="50%">
+
+### Smart Restaurant Setup
+
+Configure seating layouts with:
+
+✔ Live Preview  
+✔ Capacity Breakdown  
+✔ Presets  
+✔ Initialization Workflow  
+
+<img src="./Restaurant setup.png">
+
+</td>
+</tr>
+</table>
+
+---
+
+## 📈 Real-Time Analytics
+
+<p align="center">
+  <img src="./Cafe Analytics.png" width="95%">
+</p>
+
+<p align="center">
+<i>Traffic trends, peak-hour detection and operational intelligence powered by live data.</i>
+</p>
+
+---
+
+## 🎲 Monte Carlo Simulation
+
+<p align="center">
+  <img src="./Monte Carlo.png" width="95%">
+</p>
+
+<p align="center">
+<i>Predict wait times, throughput and occupancy using historical restaurant behavior.</i>
+</p>
+
+---
+
+## ⚡ Traffic Intelligence
+
+<p align="center">
+  <img src="./Daily Analytics.png" width="95%">
+</p>
+
+<p align="center">
+<i>30-minute interval traffic timelines reveal real customer behavior and rush-hour dynamics.</i>
+</p>
+
+---## 📑 Table of Contents
 
 - [📸 Preview](#-preview)
 - [🚀 Key Features](#-key-features)
