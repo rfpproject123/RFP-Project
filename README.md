@@ -1,8 +1,13 @@
-# ☕ CaféQueue — Smart Restaurant Table Queue & Analytics System
+# ☕ CaféQueue
 
-A full-stack intelligent queue management system for restaurants, built using **Flask + MongoDB**, featuring real-time queue handling, analytics, and simulation.
+> Smart restaurant queue, analytics and table management platform built with Flask and MongoDB.
 
----
+<p align="left">
+  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Flask-Backend-black?logo=flask"/>
+  <img src="https://img.shields.io/badge/MongoDB-Database-47A248?logo=mongodb&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Status-Active_Development-success"/>
+</p>
 
 ## 🚀 Key Features
 
