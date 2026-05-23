@@ -27,35 +27,34 @@ Real-time queue management, smart table allocation, live analytics, and Monte Ca
 🔐 Role-Based Authentication  
 
 ---
-# ✨ Product Showcase
+<div align="center">
 
-## 🔥 Premium Login Experience
+# ☕ CaféQueue
 
-<p align="center">
-  <img src="./Login.png" width="95%">
-</p>
+### Intelligent Restaurant Queue & Analytics Platform
 
----
+Real-time queue management, smart table allocation, live analytics, and Monte Carlo simulation — engineered for modern cafés and restaurants.
 
-## 📊 Live Operations Dashboard
+<br>
 
-<p align="center">
-  <img src="./Cafe Dashboard.png" width="95%">
-</p>
+![Live](https://img.shields.io/badge/Live-Demo-FF6B35?style=for-the-badge)
+![Flask](https://img.shields.io/badge/Flask-Backend-000000?style=for-the-badge&logo=flask&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-Database-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 
----
+<br>
 
-# ⚡ Platform Preview
+<img src="./Cafe Dashboard.png" width="95%">
 
-<p align="center">
-  <img src="./Cafe Analytics.png" width="95%">
-</p>
+<br>
 
-<p align="center">
-  <i>Real-time queue intelligence, analytics and simulation engineered for modern cafés.</i>
-</p>
+*Real-time restaurant operations powered by queue intelligence, analytics and simulation.*
+
+</div>
 
 ---
+
+## ⚡ Platform Highlights
 ## 📑 Table of Contents
 
 - [📸 Preview](#-preview)
