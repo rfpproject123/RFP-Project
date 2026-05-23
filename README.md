@@ -13,12 +13,6 @@ Real-time queue management, smart table allocation, live analytics, and Monte Ca
 ![MongoDB](https://img.shields.io/badge/MongoDB-Database-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 
-<br>
-
-<img src="./Cafe Dashboard.png" width="95%">
-
-<br>
-
 *Real-time restaurant operations powered by queue intelligence, analytics and simulation.*
 
 </div>
