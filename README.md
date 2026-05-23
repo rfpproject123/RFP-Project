@@ -4,23 +4,26 @@
 
 ### Intelligent Restaurant Queue & Analytics Platform
 
-Real-time queue management, smart table allocation, analytics, and Monte Carlo simulation — engineered for modern cafés and restaurants.
+Real-time queue management, smart table allocation, live analytics, and Monte Carlo simulation — engineered for modern cafés and restaurants.
 
 <br>
 
-<p>
-  <a href="https://cafequeue.onrender.com">
-    <img src="https://img.shields.io/badge/Live-Demo-ff6b35?style=for-the-badge&logo=render&logoColor=white"/>
-  </a>
-  <img src="https://img.shields.io/badge/Flask-Backend-black?style=for-the-badge&logo=flask"/>
-  <img src="https://img.shields.io/badge/MongoDB-Database-green?style=for-the-badge&logo=mongodb"/>
-  <img src="https://img.shields.io/badge/Monte-Carlo-Simulation-blue?style=for-the-badge"/>
-</p>
+![Live](https://img.shields.io/badge/Live-Demo-FF6B35?style=for-the-badge)
+![Flask](https://img.shields.io/badge/Flask-Backend-000000?style=for-the-badge&logo=flask&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-Database-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+
+<br>
+
+<img src="./Cafe Dashboard.png" width="95%">
+
+<br>
+
+*Real-time restaurant operations powered by queue intelligence, analytics and simulation.*
 
 </div>
 
 ---
-
 ## ⚡ Platform Highlights
 
 🧠 Smart Table Allocation  
